@@ -24,6 +24,9 @@ import { Y } from './layout'
  * the box it fills shrinking and dropping as it goes. The section is a superellipse,
  * which gives softly rounded corners without needing explicit fillets.
  */
+/** Widest radius of the case flank; the lug's shoulder is cut to follow it. */
+const FLANK_MAX = CASE.middleRadius
+
 const LUG = {
   /** Inner faces sit exactly `lugWidth` apart so the bracelet fits between them. */
   innerX: CASE.lugWidth / 2,
@@ -43,9 +46,15 @@ const LUG = {
   rootZ: 8.0,
   /** Lug-to-lug ends up ~42mm on a 36mm case, matching the reference 1.17 ratio. */
   tipZ: 21.0,
-  /** Outer face: flush with the case circle at the root, tapering hard to the tip. */
-  outerAtRoot: 15.6,
-  outerAtTip: 13.0,
+  /**
+   * Outer face beyond the shoulder. Near the root the edge FOLLOWS THE CASE CIRCLE
+   * exactly (see lugSection), then blends into this gentle straight taper — which is
+   * what makes the lug look grown out of the case rather than merely adjacent to it.
+   */
+  outerAtMid: 13.7,
+  outerAtTip: 12.9,
+  /** How far along the lug the circle-following blends out into the straight taper. */
+  blendEnd: 0.5,
   topAtRoot: 0.3,
   topAtTip: -1.6,
   bottomAtRoot: -5.4,
@@ -66,10 +75,16 @@ interface LugSection {
 
 function lugSection(v: number): LugSection {
   const lerp = (a: number, b: number, t: number) => a + (b - a) * t
-  // Ease the taper so the lug stays full-bodied leaving the case and narrows
-  // noticeably only over the outer half — matching how the shoulder reads.
-  const taper = Math.pow(v, 1.15)
-  const xOut = lerp(LUG.outerAtRoot, LUG.outerAtTip, taper)
+  const z = -lerp(LUG.rootZ, LUG.tipZ, v)
+
+  // Where the case still exists at this z, the lug's outer edge lies ON its circle,
+  // so the two silhouettes are one continuous curve. Past the shoulder the circle
+  // collapses toward zero, so the edge blends into a straight gentle taper instead.
+  const circle = Math.sqrt(Math.max(0, FLANK_MAX * FLANK_MAX - z * z))
+  const straight = lerp(LUG.outerAtMid, LUG.outerAtTip, v)
+  const t = Math.min(1, v / LUG.blendEnd)
+  const blend = t * t * (3 - 2 * t) // smoothstep
+  const xOut = Math.max(circle * (1 - blend) + straight * blend, LUG.innerX + 0.6)
   const yTop = lerp(LUG.topAtRoot, LUG.topAtTip, Math.pow(v, 1.5))
   const yBot = lerp(LUG.bottomAtRoot, LUG.bottomAtTip, Math.pow(v, 1.7))
 
@@ -82,7 +97,7 @@ function lugSection(v: number): LugSection {
   }
 
   return {
-    z: -lerp(LUG.rootZ, LUG.tipZ, v),
+    z,
     cx: (LUG.innerX + xOut) / 2,
     cy: (yTop + yBot) / 2,
     hx: ((xOut - LUG.innerX) / 2) * shrink,
@@ -124,7 +139,7 @@ function buildLug(): THREE.BufferGeometry {
  * below, which is the asymmetry visible in the reference profile.
  */
 const FLANK = {
-  maxRadius: CASE.middleRadius,
+  maxRadius: FLANK_MAX,
   apexY: 0.25,
   /** Curvature above the apex — tight, so the case tucks quickly under the bezel. */
   kAbove: 0.34,

@@ -107,16 +107,17 @@ export function buildFlutedBezel(opts: FlutedBezelOptions): THREE.BufferGeometry
   const ribs: Rib[] = [
     { r: at(0), y: height - 0.55, w: 0 },
     { r: at(0.02), y: height - 0.2, w: 0 },
-    { r: at(0.11), y: height, w: 0 },             // polished inner rim, unfluted
-    { r: at(0.15), y: height - 0.02, w: 0 },
-    { r: at(0.19), y: height - 0.05, w: 1 },      // flutes start at FULL depth
+    { r: at(0.08), y: height, w: 0 },             // narrow polished inner rim
+    { r: at(0.12), y: height - 0.02, w: 1 },      // flutes start at FULL depth
     { r: at(0.42), y: height - 0.3, w: 1 },
     { r: at(0.68), y: height - 0.78, w: 1 },
-    { r: at(0.84), y: height - 1.16, w: 1 },      // ...and hold it right across
-    { r: at(0.88), y: height - 1.28, w: 0 },      // stop cleanly
-    { r: at(0.94), y: height - 1.46, w: 0 },      // polished outer band
-    { r: at(1), y: height - 1.74, w: 0 },         // outer edge
-    { r: at(1), y: 0.12, w: 0 },
+    { r: at(0.88), y: height - 1.24, w: 1 },
+    // Flutes run right OUT to the outer edge and wrap over it. The reference shows
+    // the sawtooth silhouetted on the rim itself; a polished band there erased the
+    // very edge where the flutes are most legible.
+    { r: at(1), y: height - 1.66, w: 1 },         // outer edge
+    { r: at(1), y: 0.3, w: 1 },                   // outer wall, still fluted
+    { r: at(0.98), y: 0.05, w: 0.35 },
     { r: at(0.96), y: 0, w: 0 },
     { r: at(0), y: 0, w: 0 },                     // underside
   ]

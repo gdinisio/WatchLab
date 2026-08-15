@@ -33,12 +33,20 @@ export const BEZEL = {
   height: 1.82,
   /**
    * Flute count for the 18k white gold fluted bezel.
-   * TUNE VISUALLY against reference: flute pitch should read ~2.5mm at the outer edge.
-   * At r=18mm, circumference is ~113mm, so ~44 flutes gives a ~2.57mm pitch.
+   *
+   * Measured off the isolated-bezel reference: each flute reads roughly as WIDE as
+   * the bezel band is deep. The band here is 2.75mm, and at mid-radius (16.6mm) the
+   * circumference is 104mm, so 44 flutes gives a 2.37mm pitch — near square, which
+   * matches. At 60 the pitch fell to 1.74mm and individual flutes stopped being
+   * separable, which is exactly the failure being corrected.
    */
-  fluteCount: 60,
-  /** Peak-to-valley depth of each flute. */
-  fluteDepth: 0.30,
+  fluteCount: 44,
+  /**
+   * Peak-to-valley depth. With a 2.37mm pitch this puts the facet slope near 22°,
+   * steep enough for each face to catch light distinctly. At 0.30 the facets were
+   * only ~14° off flat and washed into one another.
+   */
+  fluteDepth: 0.48,
   /** 0 = pure cosine, higher = sharper crests / broader polished valleys. */
   fluteSharpness: 1.0,
 } as const
