@@ -63,7 +63,7 @@ export function Viewer({
         stencil: false,
         powerPreference: 'high-performance',
         toneMapping: THREE.NeutralToneMapping,
-        toneMappingExposure: 1.05,
+        toneMappingExposure: 0.92,
       }}
       camera={{ position: cameraPosition, fov: 30, near: 0.5, far: 3000 }}
       onPointerMissed={() => useViewer.getState().setSelected(null)}

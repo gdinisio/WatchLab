@@ -93,21 +93,30 @@ export function buildFlutedBezel(opts: FlutedBezelOptions): THREE.BufferGeometry
     creaseAngle = Math.PI / 9,
   } = opts
 
-  // Profile runs from the inner top aperture, out and down the fluted face, around
-  // the outer edge and back along the underside.
+  /**
+   * Profile runs from the inner top aperture, out and down the fluted face, around
+   * the outer edge and back along the underside.
+   *
+   * Radii are FRACTIONS of the band width, never fixed millimetre offsets. With
+   * absolute offsets, narrowing the band (as matching the reference bezel required)
+   * made `inner + 1.5` overshoot `outer - 1.5`, folding the profile back on itself
+   * and shredding the flutes into a ragged zigzag.
+   */
+  const band = outerRadius - innerRadius
+  const at = (f: number) => innerRadius + f * band
   const ribs: Rib[] = [
-    { r: innerRadius, y: height - 0.55, w: 0 },
-    { r: innerRadius + 0.06, y: height - 0.2, w: 0 },
-    { r: innerRadius + 0.34, y: height, w: 0 },          // polished top rim
-    { r: innerRadius + 0.85, y: height - 0.05, w: 0.35 },
-    { r: innerRadius + 1.5, y: height - 0.3, w: 1 },     // fluted face
-    { r: outerRadius - 1.5, y: height - 1.15, w: 1 },
-    { r: outerRadius - 0.45, y: height - 1.85, w: 0.8 },
-    { r: outerRadius - 0.08, y: height - 2.15, w: 0.25 },
-    { r: outerRadius, y: height - 2.3, w: 0 },           // outer edge
-    { r: outerRadius, y: 0.12, w: 0 },
-    { r: outerRadius - 0.16, y: 0, w: 0 },
-    { r: innerRadius, y: 0, w: 0 },                      // underside
+    { r: at(0), y: height - 0.55, w: 0 },
+    { r: at(0.02), y: height - 0.2, w: 0 },
+    { r: at(0.1), y: height, w: 0 },              // polished top rim
+    { r: at(0.26), y: height - 0.06, w: 0.4 },
+    { r: at(0.46), y: height - 0.3, w: 1 },       // fluted face
+    { r: at(0.72), y: height - 0.86, w: 1 },
+    { r: at(0.9), y: height - 1.34, w: 0.8 },
+    { r: at(0.98), y: height - 1.62, w: 0.25 },
+    { r: at(1), y: height - 1.78, w: 0 },         // outer edge
+    { r: at(1), y: 0.12, w: 0 },
+    { r: at(0.96), y: 0, w: 0 },
+    { r: at(0), y: 0, w: 0 },                     // underside
   ]
 
   const profile = densify(ribs, 5)

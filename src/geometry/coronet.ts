@@ -9,18 +9,29 @@ import * as THREE from 'three'
  * Prong layout as fractions of half-width / height.
  */
 const PRONGS = [
-  { x: 0.0, y: 1.0, r: 0.15 },
-  { x: 0.52, y: 0.9, r: 0.135 },
-  { x: -0.52, y: 0.9, r: 0.135 },
-  { x: 1.0, y: 0.62, r: 0.13 },
-  { x: -1.0, y: 0.62, r: 0.13 },
+  { x: 0.0, y: 1.0, r: 0.14 },
+  { x: 0.54, y: 0.88, r: 0.125 },
+  { x: -0.54, y: 0.88, r: 0.125 },
+  { x: 1.0, y: 0.6, r: 0.12 },
+  { x: -1.0, y: 0.6, r: 0.12 },
 ]
 
+/**
+ * Stem half-width as a fraction of its ball radius.
+ *
+ * The coronet only reads as a crown if there are clear V-shaped GAPS between the
+ * prongs. Thick stems close those gaps and the whole logo collapses into a blob
+ * with bumps on top — which at 2mm on a dial is exactly what you must avoid.
+ */
+const STEM_RATIO = 0.3
+
 /** Where every stem converges, as a fraction of height. */
-const WAIST_Y = 0.2
-const BASE_Y = 0.06
-const BASE_HALF_WIDTH = 0.62
-const BASE_HEIGHT = 0.16
+const WAIST_Y = 0.26
+const BASE_Y = 0.0
+const BASE_HALF_WIDTH = 0.74
+const BASE_HEIGHT = 0.15
+/** Half-width of the neck joining the waist to the base bar. */
+const NECK_HALF_WIDTH = 0.17
 
 /**
  * Draws the coronet into a 2D context, centred on (cx, cy) with `cy` at the BASE.
@@ -38,15 +49,17 @@ export function drawCoronet(
   const py = (fy: number) => cy - fy * height
 
   ctx.beginPath()
-  // Tapered stems fanning out from the waist to each ball.
+  // Slender tapered stems fanning out from the waist to each ball, leaving open
+  // V-gaps between them.
   for (const p of PRONGS) {
     const bx = px(p.x)
     const by = py(p.y)
-    const stemHalf = p.r * hw * 0.52
-    ctx.moveTo(px(p.x * 0.18) - stemHalf * 0.8, py(WAIST_Y))
+    const stemHalf = p.r * hw * STEM_RATIO
+    const rootHalf = stemHalf * 1.35
+    ctx.moveTo(px(p.x * 0.1) - rootHalf, py(WAIST_Y))
     ctx.lineTo(bx - stemHalf, by)
     ctx.lineTo(bx + stemHalf, by)
-    ctx.lineTo(px(p.x * 0.18) + stemHalf * 0.8, py(WAIST_Y))
+    ctx.lineTo(px(p.x * 0.1) + rootHalf, py(WAIST_Y))
     ctx.closePath()
   }
   ctx.fill()
@@ -69,10 +82,10 @@ export function drawCoronet(
 
   // Neck joining base to waist.
   ctx.beginPath()
-  ctx.moveTo(px(-0.3), py(WAIST_Y + 0.02))
-  ctx.lineTo(px(0.3), py(WAIST_Y + 0.02))
-  ctx.lineTo(px(BASE_HALF_WIDTH * 0.8), py(BASE_Y + BASE_HEIGHT))
-  ctx.lineTo(px(-BASE_HALF_WIDTH * 0.8), py(BASE_Y + BASE_HEIGHT))
+  ctx.moveTo(px(-NECK_HALF_WIDTH), py(WAIST_Y + 0.04))
+  ctx.lineTo(px(NECK_HALF_WIDTH), py(WAIST_Y + 0.04))
+  ctx.lineTo(px(NECK_HALF_WIDTH * 1.6), py(BASE_Y + BASE_HEIGHT))
+  ctx.lineTo(px(-NECK_HALF_WIDTH * 1.6), py(BASE_Y + BASE_HEIGHT))
   ctx.closePath()
   ctx.fill()
 }
@@ -88,12 +101,13 @@ export function coronetShapes(width: number, height: number): THREE.Shape[] {
   for (const p of PRONGS) {
     const bx = p.x * hw
     const by = p.y * height
-    const stemHalf = p.r * hw * 0.52
+    const stemHalf = p.r * hw * STEM_RATIO
+    const rootHalf = stemHalf * 1.35
     const stem = new THREE.Shape()
-    stem.moveTo(p.x * 0.18 * hw - stemHalf * 0.8, WAIST_Y * height)
+    stem.moveTo(p.x * 0.1 * hw - rootHalf, WAIST_Y * height)
     stem.lineTo(bx - stemHalf, by)
     stem.lineTo(bx + stemHalf, by)
-    stem.lineTo(p.x * 0.18 * hw + stemHalf * 0.8, WAIST_Y * height)
+    stem.lineTo(p.x * 0.1 * hw + rootHalf, WAIST_Y * height)
     stem.closePath()
     shapes.push(stem)
 
@@ -114,10 +128,10 @@ export function coronetShapes(width: number, height: number): THREE.Shape[] {
   shapes.push(base)
 
   const neck = new THREE.Shape()
-  neck.moveTo(-0.3 * hw, WAIST_Y * height)
-  neck.lineTo(0.3 * hw, WAIST_Y * height)
-  neck.lineTo(BASE_HALF_WIDTH * 0.8 * hw, by1)
-  neck.lineTo(-BASE_HALF_WIDTH * 0.8 * hw, by1)
+  neck.moveTo(-NECK_HALF_WIDTH * hw, WAIST_Y * height)
+  neck.lineTo(NECK_HALF_WIDTH * hw, WAIST_Y * height)
+  neck.lineTo(NECK_HALF_WIDTH * 1.6 * hw, by1)
+  neck.lineTo(-NECK_HALF_WIDTH * 1.6 * hw, by1)
   neck.closePath()
   shapes.push(neck)
 

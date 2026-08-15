@@ -9,12 +9,11 @@ import { cached, type P2, mergeAll } from '../geometry/utils'
 import { Y } from './layout'
 
 /**
- * One lug, drawn as its side profile in the ZY plane and extruded across X.
- * Lugs taper and curve downward away from the case; the bevel is what gives the
- * polished flank its bright edge.
+ * Each lug is this thick across X, and a pair straddles the 20mm bracelet gap — so
+ * the total width across the lugs is 20 + 2×this. At 3.45 that came to ~29mm on a
+ * 36mm case, which reads as a chunky sports watch; the reference sits nearer 26mm.
  */
-/** Each lug is this thick across X; a pair straddles the 20mm bracelet gap. */
-const LUG_THICKNESS = 3.45
+const LUG_THICKNESS = 2.9
 
 function buildLug(): THREE.BufferGeometry {
   const shape = new THREE.Shape()
@@ -30,12 +29,12 @@ function buildLug(): THREE.BufferGeometry {
   // case surface only reaches |z| ~9.6. Rooting at 11.5 therefore left the corner
   // hanging outside the case as a visible seam. 9.2 stays buried over the full
   // height range.
-  shape.moveTo(-9.2, 1.15)
-  shape.quadraticCurveTo(-16.0, 0.6, -19.5, -0.85)    // top face sweeping down and out
-  shape.quadraticCurveTo(-21.3, -1.7, -21.5, -2.9)    // rounded outer tip
-  shape.quadraticCurveTo(-21.6, -3.95, -20.3, -4.3)
-  shape.quadraticCurveTo(-16.0, -5.1, -12.0, -5.5)    // underside tucking back in
-  shape.lineTo(-9.2, -5.6)
+  shape.moveTo(-9.2, 0.55)
+  shape.quadraticCurveTo(-15.6, 0.1, -19.3, -1.15)    // top face sweeping down and out
+  shape.quadraticCurveTo(-21.0, -1.95, -21.4, -3.0)   // rounded outer tip
+  shape.quadraticCurveTo(-21.6, -3.9, -20.2, -4.3)
+  shape.quadraticCurveTo(-15.8, -5.05, -12.0, -5.4)   // underside tucking back in
+  shape.lineTo(-9.2, -5.5)
   shape.closePath()
 
   const g = new THREE.ExtrudeGeometry(shape, {
@@ -43,8 +42,8 @@ function buildLug(): THREE.BufferGeometry {
     bevelEnabled: true,
     // A heavy bevel is what rounds the outer face. A hard-edged extrusion reads as a
     // stamped plate bolted to the case instead of a machined continuation of it.
-    bevelThickness: 0.6,
-    bevelSize: 0.62,
+    bevelThickness: 0.44,
+    bevelSize: 0.46,
     bevelOffset: 0,
     bevelSegments: 8,
     curveSegments: 32,

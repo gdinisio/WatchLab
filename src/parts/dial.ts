@@ -34,7 +34,6 @@ export function buildDial(): THREE.BufferGeometry {
   })
 }
 
-/** Applied baton index: a chamfered white-gold trough. */
 /**
  * Applied baton index, built as an open FRAME rather than a solid block.
  *
@@ -48,13 +47,14 @@ export function buildIndex(double = false): THREE.BufferGeometry {
   return cached(`dial/index-${double}`, () => {
     const { length, width, height, frameWall } = DIAL.indices
     const make = (offsetX: number) => {
-      const outline = roundedRect(width, length, width * 0.16)
+      // Reference batons have near-square corners; a big radius rounds them into pills.
+      const outline = roundedRect(width, length, width * 0.06)
       outline.holes.push(
         new THREE.Path(
           roundedRect(
             width - frameWall * 2,
             length - frameWall * 2,
-            (width - frameWall * 2) * 0.2,
+            (width - frameWall * 2) * 0.08,
           ).getPoints(24),
         ),
       )
@@ -84,7 +84,7 @@ export function buildIndexLume(double = false): THREE.BufferGeometry {
     const w = width - frameWall * 2
     const l = length - frameWall * 2
     const make = (offsetX: number) => {
-      const g = flatExtrude(roundedRect(w, l, w * 0.18), {
+      const g = flatExtrude(roundedRect(w, l, w * 0.08), {
         thickness: height * 0.78,
         bevel: 0.035,
         bevelSegments: 2,

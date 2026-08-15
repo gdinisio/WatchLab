@@ -79,6 +79,9 @@ export interface SapphireProps {
   attenuationColor: string
   attenuationDistance: number
   color: string
+  /** Stands in for the AR coating: how much the surface reflects at all. */
+  specularIntensity: number
+  envMapIntensity: number
 }
 
 function setRepeat(maps: MetalMaps, u: number, v: number) {
@@ -178,17 +181,19 @@ export function buildMaterials(): MaterialLibrary {
     normalMap: dialMaps.normalMap,
     normalScale: new THREE.Vector2(0.4, 0.4),
     anisotropyMap: dialMaps.anisotropyMap,
-    // A sunray dial is metal brushed under lacquer, so it must be substantially
-    // metallic or the sweeping highlight never appears — but pushed all the way to 1
-    // it goes black, because a mirror of a dark room is a dark room.
-    metalness: 0.55,
+    // A sunray dial is a COLOURED lacquer over brushed metal, so most of what you
+    // see is diffuse pigment; the metal underneath only supplies the sweeping
+    // highlight. Held near 0.5 the dial mirrors the white tent from every direction
+    // at once and washes out to pale lavender no matter how blue the base is.
+    metalness: 0.28,
     roughness: 1,
     anisotropy: 1,
     // Radial grain: the direction comes from the map, so no extra rotation.
     anisotropyRotation: 0,
     clearcoat: 1,
     clearcoatRoughness: 0.035,
-    envMapIntensity: 1.6,
+    // Pushed higher the sunray blows out to lavender instead of staying blue.
+    envMapIntensity: 0.78,
   }))
 
   const dateDiscMap = track(makeDateDiscMap(DATE_DISC_RADIUS, DIAL.date.distanceFromCentre))
@@ -265,19 +270,36 @@ export function buildMaterials(): MaterialLibrary {
     color: '#ffffff',
     ior: 1.77,
     thickness: 1.25,
-    chromaticAberration: 0.015,
-    anisotropicBlur: 0.02,
+    // Sapphire is optically flat and its Abbe number is high. ANY blur or colour
+    // fringing here reads as fogged plastic rather than a watch crystal, and it is
+    // the dial — the most detailed surface in the scene — that pays the price.
+    chromaticAberration: 0.004,
+    anisotropicBlur: 0,
     roughness: 0,
-    samples: 10,
-    resolution: 1024,
-    backsideResolution: 512,
+    // The transmission buffer is what the dial is actually SEEN THROUGH, so its
+    // resolution caps how sharp the dial can ever look. 1024 visibly softened the
+    // printing; this is the single biggest clarity win available.
+    samples: 16,
+    resolution: 2048,
+    backsideResolution: 1024,
     backside: true,
-    backsideThickness: 0.6,
+    backsideThickness: 0.35,
     distortion: 0,
     temporalDistortion: 0,
     transmission: 1,
     attenuationColor: '#ffffff',
-    attenuationDistance: 220,
+    attenuationDistance: 400,
+    /**
+     * Anti-reflective coating, modelled honestly.
+     *
+     * Rolex coats the underside of the crystal, cutting surface reflectance from
+     * roughly 4% to well under 1%. `specularIntensity` is exactly that dial in the
+     * PBR model. Left at 1.0 the crystal mirrors a whole softbox across the dial as
+     * a broad white band — which is what an UNCOATED piece of sapphire really would
+     * do, and precisely what the coating exists to prevent.
+     */
+    specularIntensity: 0.22,
+    envMapIntensity: 0.5,
   }
 
   return {

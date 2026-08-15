@@ -69,12 +69,14 @@ function drawPrintMask(ctx: CanvasRenderingContext2D) {
   }
 
   // ---- Coronet at 12 ------------------------------------------------------
-  drawCoronet(ctx, cx(0), cy(8.55), toPx(DIAL.coronet.width), toPx(1.5))
+  drawCoronet(ctx, cx(0), cy(9.15), toPx(DIAL.coronet.width), toPx(1.55))
 
   // ---- Upper text block ---------------------------------------------------
-  tracked(ctx, DIAL.text.brand, 0, 6.85, 1.42, 0.16, '600')
-  tracked(ctx, DIAL.text.line1, 0, 4.85, 0.66, 0.1)
-  tracked(ctx, DIAL.text.line2, 0, 3.55, 0.72, 0.1, '600')
+  // Reference stacks these tightly under the coronet, with OYSTER PERPETUAL and
+  // DATEJUST clearly legible rather than shrunk to a whisper beneath ROLEX.
+  tracked(ctx, DIAL.text.brand, 0, 6.45, 1.46, 0.15, '600')
+  tracked(ctx, DIAL.text.line1, 0, 4.85, 0.8, 0.09, '500')
+  tracked(ctx, DIAL.text.line2, 0, 3.55, 0.86, 0.09, '600')
 
   // ---- Lower certification block -----------------------------------------
   // Deliberately small and light. On the real dial this is near-microprint; sized up
@@ -124,7 +126,7 @@ export function makeDialMaps(colour = DIAL.colour): DialMaps {
     return printData[(y * SIZE + x) * 4] / 255
   }
 
-  const grain = makeAngularNoise(2024, 2600)
+  const grain = makeAngularNoise(2024, 3200)
 
   // Height: fine sunray grain everywhere, plus raised print on top.
   const height = makeSurface(SIZE)
@@ -159,7 +161,8 @@ export function makeDialMaps(colour = DIAL.colour): DialMaps {
   const rough = makeSurface(SIZE)
   fillRGB(rough, (u, v) => {
     const p = printAt(u, v)
-    const sun = 0.24 + (grain(u, v) - 0.5) * 0.3
+    // Wide roughness swing is what makes the sunray wing sweep visibly.
+    const sun = 0.17 + (grain(u, v) - 0.5) * 0.46
     const r = sun + (0.62 - sun) * p
     return [r, r, r]
   })

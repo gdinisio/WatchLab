@@ -24,9 +24,9 @@ function GradientBackdrop() {
         depthWrite: false,
         toneMapped: false,
         uniforms: {
-          top: { value: new THREE.Color('#6f7889') },
-          bottom: { value: new THREE.Color('#0d1015') },
-          horizon: { value: new THREE.Color('#333a47') },
+          top: { value: new THREE.Color('#7b7b7d') },
+          bottom: { value: new THREE.Color('#0f0f10') },
+          horizon: { value: new THREE.Color('#3a3a3c') },
         },
         vertexShader: /* glsl */ `
           varying vec3 vDir;
@@ -77,18 +77,18 @@ export function StudioEnvironment({ intensity = 1, rotationY = 0 }: StudioEnviro
           Large, moderately bright panels that carry the BASE brightness of every
           polished surface. Without these the metals reflect mostly black and read
           as gunmetal instead of steel. The gaps between them are the dark bands. */}
-      <Lightformer form="rect" intensity={2.4} color="#eef2fb"
+      <Lightformer form="rect" intensity={1.7} color="#f4f4f5"
         position={[0, 170, 0]} scale={[230, 230, 1]} rotation-x={Math.PI / 2} />
-      <Lightformer form="rect" intensity={1.7} color="#e6ecf8"
+      <Lightformer form="rect" intensity={1.7} color="#f2f2f3"
         position={[-190, 40, 60]} scale={[150, 150, 1]} target />
-      <Lightformer form="rect" intensity={1.5} color="#f6efe6"
+      <Lightformer form="rect" intensity={1.5} color="#f6f2ec"
         position={[190, 40, -40]} scale={[150, 150, 1]} target />
-      <Lightformer form="rect" intensity={1.3} color="#e8eefb"
+      <Lightformer form="rect" intensity={1.3} color="#f0f0f2"
         position={[0, 50, 200]} scale={[190, 150, 1]} target />
 
       {/* --- Key ---------------------------------------------------------
           Broad overhead softbox sitting inside the ceiling panel. */}
-      <Lightformer form="rect" intensity={7} color="#ffffff"
+      <Lightformer form="rect" intensity={5} color="#ffffff"
         position={[0, 130, 35]} scale={[130, 60, 1]} target />
 
       {/* --- Rim strips --------------------------------------------------
@@ -99,7 +99,7 @@ export function StudioEnvironment({ intensity = 1, rotationY = 0 }: StudioEnviro
         position={[-125, 30, 45]} scale={[13, 175, 1]} target />
       <Lightformer form="rect" intensity={13} color="#fff4e8"
         position={[130, 35, -15]} scale={[10, 175, 1]} target />
-      <Lightformer form="rect" intensity={9} color="#eaf1ff"
+      <Lightformer form="rect" intensity={9} color="#eef0f4"
         position={[-55, 95, -110]} scale={[9, 120, 1]} target />
 
       {/* --- Kicker ------------------------------------------------------
@@ -124,14 +124,14 @@ export function StudioEnvironment({ intensity = 1, rotationY = 0 }: StudioEnviro
           it mirrors the floor, not the ceiling. Without something bright below the
           horizon the band stays black however bright the rest of the rig is. This is
           the white card every watch photographer puts under the subject. */}
-      <Lightformer form="rect" intensity={3.2} color="#f2f5ff"
+      <Lightformer form="rect" intensity={3.2} color="#f5f5f6"
         position={[0, -78, 118]} scale={[170, 95, 1]} target />
       <Lightformer form="rect" intensity={2.2} color="#f6f1ea"
         position={[-110, -70, -60]} scale={[130, 80, 1]} target />
 
       {/* --- Floor bounce ------------------------------------------------
           Stops casebacks and undersides going pure black. */}
-      <Lightformer form="rect" intensity={1.8} color="#9fb0cc"
+      <Lightformer form="rect" intensity={1.8} color="#b4b4b8"
         position={[0, -150, 0]} scale={[240, 240, 1]} rotation-x={-Math.PI / 2} />
 
     </Environment>

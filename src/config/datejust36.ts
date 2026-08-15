@@ -29,26 +29,26 @@ export const CASE = {
 
 export const BEZEL = {
   outerRadius: 18,
-  innerRadius: 14.75,
+  innerRadius: 15.25,
   height: 1.82,
   /**
    * Flute count for the 18k white gold fluted bezel.
    * TUNE VISUALLY against reference: flute pitch should read ~2.5mm at the outer edge.
    * At r=18mm, circumference is ~113mm, so ~44 flutes gives a ~2.57mm pitch.
    */
-  fluteCount: 44,
+  fluteCount: 54,
   /** Peak-to-valley depth of each flute. */
-  fluteDepth: 0.40,
+  fluteDepth: 0.34,
   /** 0 = pure cosine, higher = sharper crests / broader polished valleys. */
   fluteSharpness: 0.85,
 } as const
 
 export const CRYSTAL = {
-  radius: 14.75,
+  radius: 15.25,
   /** Centre thickness of the sapphire. */
   thickness: 1.25,
   /** Sagitta of the very slight dome (Datejust crystals are near-flat). */
-  domeRise: 0.32,
+  domeRise: 0.16,
   /** Height of the crystal underside above the dial plane. */
   seatHeight: 3.05,
   cyclops: {
@@ -68,7 +68,7 @@ export const CASEBACK = {
   rimRadius: 14.8,
   rimNotches: 96,
   thickness: 1.15,
-  domeRise: 0.32,
+  domeRise: 0.16,
 } as const
 
 export const CROWN = {
@@ -85,23 +85,23 @@ export const CROWN = {
 } as const
 
 export const DIAL = {
-  radius: 14.25,
+  radius: 14.7,
   thickness: 0.42,
   /** Deep blue sunburst. */
-  colour: '#1b4d99',
+  colour: '#0655bd',
   /** Minute track sits just inside the rehaut. */
-  minuteTrackRadius: 13.35,
+  minuteTrackRadius: 13.85,
   indices: {
     /** Applied white gold baton indices. 3 o'clock is replaced by the date aperture. */
     hours: [12, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11],
     /** Reference batons are long and chunky — roughly a quarter of the dial radius. */
-    length: 3.25,
-    width: 1.02,
+    length: 3.7,
+    width: 0.84,
     height: 0.46,
     /** Wall thickness of the polished white gold frame around the luminous fill. */
-    frameWall: 0.19,
+    frameWall: 0.16,
     /** Radial position of the OUTER end of each baton. */
-    outerRadius: 12.45,
+    outerRadius: 12.95,
   },
   date: {
     /** Aperture centre, 3 o'clock. */
