@@ -1,0 +1,180 @@
+/**
+ * Reference specification — Rolex Datejust 36, ref. 126234 configuration.
+ *
+ * HARD RULE FOR THE WHOLE PROJECT: 1 world unit === 1 millimetre.
+ * Every number below is a real physical dimension. Keeping the scene in mm makes
+ * `thickness`, `attenuationDistance` and `aoRadius` physically meaningful and avoids
+ * the classic "transmission looks like frosted plastic" bug.
+ *
+ * Dimensions are targets tuned against reference imagery, not manufacturer CAD.
+ */
+
+export const CASE = {
+  /** Nominal case diameter across the bezel. */
+  diameter: 36,
+  radius: 18,
+  /** Overall height, caseback dome to crystal dome. */
+  thickness: 11.8,
+  lugWidth: 20,
+  lugToLug: 44,
+  /** Middle-case (Oyster monobloc) outer radius at its widest, below the bezel. */
+  middleRadius: 17.6,
+  /** Radius of the machined step the bezel snaps onto. */
+  bezelSeatRadius: 15.4,
+  /** Inner bore that the movement + casing ring drop into. */
+  boreRadius: 15.0,
+  /** Height of the middle case alone (no bezel, no caseback dome). */
+  middleHeight: 7.4,
+} as const
+
+export const BEZEL = {
+  outerRadius: 18,
+  innerRadius: 14.75,
+  height: 2.05,
+  /**
+   * Flute count for the 18k white gold fluted bezel.
+   * TUNE VISUALLY against reference: flute pitch should read ~2.5mm at the outer edge.
+   * At r=18mm, circumference is ~113mm, so ~44 flutes gives a ~2.57mm pitch.
+   */
+  fluteCount: 44,
+  /** Peak-to-valley depth of each flute. */
+  fluteDepth: 0.36,
+  /** 0 = pure cosine, higher = sharper crests / broader polished valleys. */
+  fluteSharpness: 0.6,
+} as const
+
+export const CRYSTAL = {
+  radius: 14.75,
+  /** Centre thickness of the sapphire. */
+  thickness: 1.25,
+  /** Sagitta of the very slight dome (Datejust crystals are near-flat). */
+  domeRise: 0.32,
+  /** Height of the crystal underside above the dial plane. */
+  seatHeight: 3.05,
+  cyclops: {
+    radius: 2.55,
+    /** Plano-convex lens height above the crystal surface. */
+    rise: 0.95,
+    /** Radius of curvature of the convex face — drives the 2.5x magnification. */
+    curvature: 4.2,
+    /** Sits over the date aperture at 3 o'clock. */
+    distanceFromCentre: 10.4,
+  },
+} as const
+
+export const CASEBACK = {
+  outerRadius: 14.8,
+  /** Radius of the fluted gripping rim the Rolex tool engages. */
+  rimRadius: 14.8,
+  rimNotches: 60,
+  thickness: 1.15,
+  domeRise: 0.32,
+} as const
+
+export const CROWN = {
+  /** Twinlock winding crown, 5.3mm. */
+  radius: 2.65,
+  length: 3.4,
+  /** Number of vertical grip flutes around the crown. */
+  fluteCount: 24,
+  fluteDepth: 0.16,
+  tubeRadius: 1.5,
+  tubeLength: 3.2,
+  /** Crown sits at 3 o'clock on the +X axis. */
+  angle: 0,
+} as const
+
+export const DIAL = {
+  radius: 14.25,
+  thickness: 0.42,
+  /** Deep blue sunburst. */
+  colour: '#143a70',
+  /** Minute track sits just inside the rehaut. */
+  minuteTrackRadius: 13.35,
+  indices: {
+    /** Applied white gold baton indices. 3 o'clock is replaced by the date aperture. */
+    hours: [12, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11],
+    length: 2.6,
+    width: 0.85,
+    height: 0.5,
+    /** Radial position of the OUTER end of each baton. */
+    outerRadius: 12.55,
+  },
+  date: {
+    /** Aperture centre, 3 o'clock. */
+    distanceFromCentre: 10.4,
+    width: 3.25,
+    height: 2.55,
+  },
+  coronet: {
+    /** Applied coronet sits above the ROLEX wordmark at 12. */
+    distanceFromCentre: 9.4,
+    width: 1.95,
+  },
+  text: {
+    brand: 'ROLEX',
+    line1: 'OYSTER PERPETUAL',
+    line2: 'DATEJUST',
+    certLine1: 'SUPERLATIVE CHRONOMETER',
+    certLine2: 'OFFICIALLY CERTIFIED',
+    swiss: 'SWISS MADE',
+  },
+  feet: { radius: 11.2, angles: [Math.PI * 0.25, Math.PI * 1.25] },
+} as const
+
+export const HANDS = {
+  hour:    { length: 8.2,  width: 1.05, thickness: 0.32, lumeInset: 0.22 },
+  minute:  { length: 12.1, width: 0.9,  thickness: 0.3,  lumeInset: 0.2 },
+  seconds: { length: 13.4, width: 0.26, thickness: 0.18, tailLength: 3.6 },
+  /** Stacked heights above the dial surface. */
+  stack: { hour: 0.55, minute: 1.0, seconds: 1.45 },
+} as const
+
+/** Calibre 3235 — 28.5mm diameter, 6.05mm thick, 31 jewels, 4Hz, 70h reserve. */
+export const MOVEMENT = {
+  radius: 14.25,
+  thickness: 6.05,
+  jewelCount: 31,
+  /** Vertical stack positions relative to the main plate top face (dial side = +Y). */
+  layers: {
+    mainPlate: 0,
+    dialSide: 0.9,
+    trainSide: -1.5,
+    bridges: -2.6,
+    automatic: -4.1,
+    rotor: -5.2,
+  },
+  balance: {
+    radius: 4.75,
+    rimThickness: 0.55,
+    /** Parachrom bleu hairspring. */
+    hairspringTurns: 13,
+    hairspringOuterRadius: 2.65,
+    hairspringInnerRadius: 0.75,
+  },
+  barrel: { radius: 5.2, height: 2.05, teeth: 76 },
+  escapeWheel: { radius: 2.35, teeth: 20 },
+  rotor: { radius: 13.4, thickness: 1.35 },
+} as const
+
+export const BRACELET = {
+  /** Oyster three-piece link bracelet, tapering 20mm -> 16mm. */
+  widthAtLug: 20,
+  widthAtClasp: 16,
+  linkLength: 5.35,
+  linkThickness: 2.35,
+  /** Links per side, excluding the end link. */
+  linksPerSide: 9,
+  /** Gentle drape arc so the bracelet falls naturally away from the case. */
+  drapeRadius: 33,
+  clasp: { length: 22, width: 16, thickness: 3.1 },
+} as const
+
+/** Named parts explode along these axes. Watch lies dial-up: +Y is the stack axis. */
+export const AXIS = {
+  up: [0, 1, 0] as const,
+  down: [0, -1, 0] as const,
+  crown: [1, 0, 0] as const,
+  twelve: [0, 0, -1] as const,
+  six: [0, 0, 1] as const,
+}
