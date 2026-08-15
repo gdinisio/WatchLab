@@ -102,7 +102,8 @@ export function buildIndexLume(double = false): THREE.BufferGeometry {
 /** Applied coronet above the wordmark at 12. */
 export function buildCoronetApplique(): THREE.BufferGeometry {
   return cached('dial/coronet', () => {
-    const shapes = coronetShapes(DIAL.coronet.width, DIAL.coronet.width * 0.78)
+    // The reference mark is very nearly square in proportion.
+    const shapes = coronetShapes(DIAL.coronet.width, DIAL.coronet.width * 1.02)
     const g = flatExtrude(shapes, { thickness: 0.28, bevel: 0.035, bevelSegments: 2, curveSegments: 16 })
     // Shape origin is the base of the crown; centre it on its own bounding box.
     g.computeBoundingBox()

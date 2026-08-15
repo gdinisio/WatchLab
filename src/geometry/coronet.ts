@@ -1,41 +1,62 @@
 import * as THREE from 'three'
 
 /**
- * The Rolex coronet, built parametrically.
+ * The Rolex coronet, traced from the reference logotype.
  *
- * Five balls on tapered stems rising from a base bar: the centre prong tallest, the
- * outer pair swept out and down. Proportions are roughly 5 wide : 4 high.
+ * The structure that matters, and that a naive reading gets wrong:
  *
- * Prong layout as fractions of half-width / height.
+ *  - The five prongs are TAPERING TRIANGULAR SPIKES, wide where they leave the body
+ *    and narrowing to the ball. They are not thin parallel stems — that reads as a
+ *    sea urchin. The deep, narrow V-notches between them are most of the silhouette.
+ *  - The prongs FAN OUTWARD: the outer pair lean hard and sit noticeably lower than
+ *    the centre, so the five balls describe a shallow arc rather than a flat line.
+ *  - The body below the notches is a trapezoid that narrows downward into...
+ *  - ...a HOLLOW elliptical band at the base. That ellipse is the crown's band seen
+ *    slightly from above, and its open centre is a defining feature — filled solid,
+ *    the whole mark reads as a generic crown.
+ *
+ * All coordinates are normalised: x as a fraction of half-width, y as a fraction of
+ * height with 0 at the very bottom of the base band.
  */
-const PRONGS = [
-  { x: 0.0, y: 1.0, r: 0.145 },
-  { x: 0.5, y: 0.93, r: 0.13 },
-  { x: -0.5, y: 0.93, r: 0.13 },
-  { x: 1.0, y: 0.7, r: 0.125 },
-  { x: -1.0, y: 0.7, r: 0.125 },
+
+interface Prong {
+  /** Ball centre. */
+  x: number
+  y: number
+  /** Ball radius, as a fraction of half-width. */
+  r: number
+  /** Centre of this prong's root, where it leaves the body. */
+  baseX: number
+}
+
+const PRONGS: Prong[] = [
+  { x: 0.0, y: 0.93, r: 0.163, baseX: 0.0 },
+  { x: 0.46, y: 0.87, r: 0.15, baseX: 0.29 },
+  { x: -0.46, y: 0.87, r: 0.15, baseX: -0.29 },
+  { x: 0.85, y: 0.74, r: 0.15, baseX: 0.58 },
+  { x: -0.85, y: 0.74, r: 0.15, baseX: -0.58 },
 ]
 
-/**
- * Stem half-width as a fraction of its ball radius.
- *
- * The coronet only reads as a crown if there are clear V-shaped GAPS between the
- * prongs. Thick stems close those gaps and the whole logo collapses into a blob
- * with bumps on top — which at 2mm on a dial is exactly what you must avoid.
- */
-const STEM_RATIO = 0.3
+/** Height at which the V-notches bottom out and the solid body begins. */
+const PRONG_BASE_Y = 0.38
+/** Half-width of each prong root. The gaps left between roots ARE the notches. */
+const PRONG_ROOT_HALF = 0.125
+/** How wide the prong still is at its tip, as a fraction of the ball radius. */
+const PRONG_TIP_RATIO = 0.42
 
-/** Where every stem converges, as a fraction of height. */
-const WAIST_Y = 0.55
-const BASE_Y = 0.0
-const BASE_HALF_WIDTH = 0.86
-const BASE_HEIGHT = 0.2
-/** Half-width of the neck joining the waist to the base bar. */
-const NECK_HALF_WIDTH = 0.17
+const BODY_TOP_HALF = 0.71
+const BODY_BOTTOM_HALF = 0.44
+const BODY_BOTTOM_Y = 0.11
+
+/** The base band, an ellipse because the crown is seen slightly from above. */
+const BASE = { rx: 0.41, ry: 0.078, cy: 0.092, innerRx: 0.3, innerRy: 0.046 }
 
 /**
- * Draws the coronet into a 2D context, centred on (cx, cy) with `cy` at the BASE.
+ * Draws the coronet into a 2D context, centred on `cx` with `cy` at the BASE.
  * Canvas y grows downward, so the crown is drawn upward from cy.
+ *
+ * The hollow in the base band is punched with `destination-out` so it works
+ * whatever colour the mark is being filled in.
  */
 export function drawCoronet(
   ctx: CanvasRenderingContext2D,
@@ -48,18 +69,14 @@ export function drawCoronet(
   const px = (fx: number) => cx + fx * hw
   const py = (fy: number) => cy - fy * height
 
+  // Tapering spikes.
   ctx.beginPath()
-  // Slender tapered stems fanning out from the waist to each ball, leaving open
-  // V-gaps between them.
   for (const p of PRONGS) {
-    const bx = px(p.x)
-    const by = py(p.y)
-    const stemHalf = p.r * hw * STEM_RATIO
-    const rootHalf = stemHalf * 1.35
-    ctx.moveTo(px(p.x * 0.1) - rootHalf, py(WAIST_Y))
-    ctx.lineTo(bx - stemHalf, by)
-    ctx.lineTo(bx + stemHalf, by)
-    ctx.lineTo(px(p.x * 0.1) + rootHalf, py(WAIST_Y))
+    const tipHalf = p.r * PRONG_TIP_RATIO
+    ctx.moveTo(px(p.baseX - PRONG_ROOT_HALF), py(PRONG_BASE_Y))
+    ctx.lineTo(px(p.x - tipHalf), py(p.y))
+    ctx.lineTo(px(p.x + tipHalf), py(p.y))
+    ctx.lineTo(px(p.baseX + PRONG_ROOT_HALF), py(PRONG_BASE_Y))
     ctx.closePath()
   }
   ctx.fill()
@@ -71,69 +88,71 @@ export function drawCoronet(
     ctx.fill()
   }
 
-  // Base bar with rounded ends.
-  const bh = BASE_HEIGHT * height
-  const bx0 = px(-BASE_HALF_WIDTH)
-  const bx1 = px(BASE_HALF_WIDTH)
-  const byTop = py(BASE_Y + BASE_HEIGHT)
+  // Body: trapezoid from the notch floor down to the band.
   ctx.beginPath()
-  ctx.roundRect(bx0, byTop, bx1 - bx0, bh, bh * 0.45)
-  ctx.fill()
-
-  // Neck joining base to waist.
-  ctx.beginPath()
-  ctx.moveTo(px(-NECK_HALF_WIDTH), py(WAIST_Y + 0.04))
-  ctx.lineTo(px(NECK_HALF_WIDTH), py(WAIST_Y + 0.04))
-  ctx.lineTo(px(NECK_HALF_WIDTH * 1.6), py(BASE_Y + BASE_HEIGHT))
-  ctx.lineTo(px(-NECK_HALF_WIDTH * 1.6), py(BASE_Y + BASE_HEIGHT))
+  ctx.moveTo(px(-BODY_TOP_HALF), py(PRONG_BASE_Y))
+  ctx.lineTo(px(BODY_TOP_HALF), py(PRONG_BASE_Y))
+  ctx.lineTo(px(BODY_BOTTOM_HALF), py(BODY_BOTTOM_Y))
+  ctx.lineTo(px(-BODY_BOTTOM_HALF), py(BODY_BOTTOM_Y))
   ctx.closePath()
   ctx.fill()
+
+  // Base band.
+  ctx.beginPath()
+  ctx.ellipse(px(0), py(BASE.cy), BASE.rx * hw, BASE.ry * height, 0, 0, Math.PI * 2)
+  ctx.fill()
+
+  // Punch its hollow centre.
+  ctx.save()
+  ctx.globalCompositeOperation = 'destination-out'
+  ctx.beginPath()
+  ctx.ellipse(
+    px(0), py(BASE.cy), BASE.innerRx * hw, BASE.innerRy * height, 0, 0, Math.PI * 2,
+  )
+  ctx.fill()
+  ctx.restore()
 }
 
 /**
- * The same coronet as extrudable THREE.Shapes, for the applied marker at 12
- * and the clasp cover. Origin is at the centre of the base, +Y up.
+ * The same coronet as extrudable THREE.Shapes, for the applied marker at 12,
+ * the crown face and the clasp cover. Origin is the centre of the base, +Y up.
  */
 export function coronetShapes(width: number, height: number): THREE.Shape[] {
   const hw = width / 2
   const shapes: THREE.Shape[] = []
 
   for (const p of PRONGS) {
-    const bx = p.x * hw
-    const by = p.y * height
-    const stemHalf = p.r * hw * STEM_RATIO
-    const rootHalf = stemHalf * 1.35
-    const stem = new THREE.Shape()
-    stem.moveTo(p.x * 0.1 * hw - rootHalf, WAIST_Y * height)
-    stem.lineTo(bx - stemHalf, by)
-    stem.lineTo(bx + stemHalf, by)
-    stem.lineTo(p.x * 0.1 * hw + rootHalf, WAIST_Y * height)
-    stem.closePath()
-    shapes.push(stem)
+    const tipHalf = p.r * PRONG_TIP_RATIO
+    const spike = new THREE.Shape()
+    spike.moveTo((p.baseX - PRONG_ROOT_HALF) * hw, PRONG_BASE_Y * height)
+    spike.lineTo((p.x - tipHalf) * hw, p.y * height)
+    spike.lineTo((p.x + tipHalf) * hw, p.y * height)
+    spike.lineTo((p.baseX + PRONG_ROOT_HALF) * hw, PRONG_BASE_Y * height)
+    spike.closePath()
+    shapes.push(spike)
 
     const ball = new THREE.Shape()
-    ball.absarc(bx, by, p.r * hw, 0, Math.PI * 2, false)
+    ball.absarc(p.x * hw, p.y * height, p.r * hw, 0, Math.PI * 2, false)
     shapes.push(ball)
   }
 
-  const base = new THREE.Shape()
-  const bx = BASE_HALF_WIDTH * hw
-  const by0 = BASE_Y * height
-  const by1 = (BASE_Y + BASE_HEIGHT) * height
-  base.moveTo(-bx, by0)
-  base.lineTo(bx, by0)
-  base.lineTo(bx, by1)
-  base.lineTo(-bx, by1)
-  base.closePath()
-  shapes.push(base)
+  const body = new THREE.Shape()
+  body.moveTo(-BODY_TOP_HALF * hw, PRONG_BASE_Y * height)
+  body.lineTo(BODY_TOP_HALF * hw, PRONG_BASE_Y * height)
+  body.lineTo(BODY_BOTTOM_HALF * hw, BODY_BOTTOM_Y * height)
+  body.lineTo(-BODY_BOTTOM_HALF * hw, BODY_BOTTOM_Y * height)
+  body.closePath()
+  shapes.push(body)
 
-  const neck = new THREE.Shape()
-  neck.moveTo(-NECK_HALF_WIDTH * hw, WAIST_Y * height)
-  neck.lineTo(NECK_HALF_WIDTH * hw, WAIST_Y * height)
-  neck.lineTo(NECK_HALF_WIDTH * 1.6 * hw, by1)
-  neck.lineTo(-NECK_HALF_WIDTH * 1.6 * hw, by1)
-  neck.closePath()
-  shapes.push(neck)
+  // Base band, with its hollow centre as a real hole.
+  const band = new THREE.Shape()
+  band.absellipse(0, BASE.cy * height, BASE.rx * hw, BASE.ry * height, 0, Math.PI * 2, false, 0)
+  const hollow = new THREE.Path()
+  hollow.absellipse(
+    0, BASE.cy * height, BASE.innerRx * hw, BASE.innerRy * height, 0, Math.PI * 2, true, 0,
+  )
+  band.holes.push(hollow)
+  shapes.push(band)
 
   return shapes
 }
