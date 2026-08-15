@@ -28,6 +28,7 @@ export function Inspector() {
       <div className="eyebrow">{GROUP_LABEL[part.group] ?? part.group}</div>
       <h3>{part.name}</h3>
       <p>{spec.function}</p>
+      <p className="dismiss">Click empty space to return it to the assembly.</p>
       <dl>
         {rows.map(([k, v]) => (
           <div key={k} style={{ display: 'contents' }}>

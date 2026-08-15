@@ -2,9 +2,11 @@ import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 import { MeshTransmissionMaterial, Outlines } from '@react-three/drei'
+import { easing } from 'maath'
 import type { MaterialLibrary } from '../materials/library'
 import { useViewer } from '../state/store'
 import { partProgress } from './explode'
+import { INSPECT_POSITION, INSPECT_SPIN_SPEED, smoothstep } from './inspect'
 import type { PartDef } from './types'
 
 const _axis = new THREE.Vector3()
@@ -12,6 +14,8 @@ const _spinAxis = new THREE.Vector3()
 const _q = new THREE.Quaternion()
 const _base = new THREE.Quaternion()
 const _euler = new THREE.Euler()
+const _explodePos = new THREE.Vector3()
+const _up = new THREE.Vector3(0, 1, 0)
 
 export interface PartProps {
   def: PartDef
@@ -44,21 +48,49 @@ export function Part({ def, lib, maxOrder, simpleGlass = false }: PartProps) {
     return new THREE.Quaternion().setFromEuler(_euler)
   }, [def])
 
-  useFrame(() => {
+  /**
+   * How far this part has travelled into inspection, 0..1.
+   *
+   * Held in a ref and damped per-part rather than driven off the shared explode
+   * scalar, because only one part moves at a time and it has to ease back out again
+   * on deselect. Keeping it separate also leaves the explode cascade untouched — that
+   * is deliberately NOT damped per part, so the assembly opens as one mechanism.
+   */
+  const inspect = useRef({ t: 0 })
+
+  useFrame((state, dt) => {
     const g = group.current
     if (!g) return
     const p = partProgress(def, maxOrder)
     const { axis, distance, spin, spinAxis } = def.explode
 
     _axis.set(axis[0], axis[1], axis[2])
-    g.position.copy(basePos).addScaledVector(_axis, distance * p)
+    _explodePos.copy(basePos).addScaledVector(_axis, distance * p)
 
-    if (spin) {
-      const sa = spinAxis ?? axis
-      _spinAxis.set(sa[0], sa[1], sa[2]).normalize()
-      _q.setFromAxisAngle(_spinAxis, spin * Math.PI * 2 * p)
+    easing.damp(inspect.current, 't', selected ? 1 : 0, 0.42, dt)
+    const k = smoothstep(inspect.current.t)
+
+    if (k < 0.0005) {
+      g.position.copy(_explodePos)
+    } else {
+      g.position.lerpVectors(_explodePos, INSPECT_POSITION, k)
+    }
+
+    if (spin || k > 0.0005) {
       _base.copy(baseQuat)
-      g.quaternion.copy(_q).multiply(_base)
+      if (spin) {
+        const sa = spinAxis ?? axis
+        _spinAxis.set(sa[0], sa[1], sa[2]).normalize()
+        _q.setFromAxisAngle(_spinAxis, spin * Math.PI * 2 * p)
+        _base.premultiply(_q)
+      }
+      if (k > 0.0005) {
+        // Slow turn about world Y so the part can be read from every side. Scaled by
+        // k so it eases in with the slide instead of snapping into motion.
+        _q.setFromAxisAngle(_up, state.clock.elapsedTime * INSPECT_SPIN_SPEED * k)
+        _base.premultiply(_q)
+      }
+      g.quaternion.copy(_base)
     }
   })
 
@@ -105,9 +137,11 @@ export function Part({ def, lib, maxOrder, simpleGlass = false }: PartProps) {
             envMapIntensity={def.arCoated === false ? 1.3 : lib.sapphire.envMapIntensity}
           />
         ))}
-      {(hovered || selected) && (
-        <Outlines thickness={selected ? 1.6 : 1} color={selected ? '#c8b273' : '#7fa8ff'} />
-      )}
+      {/* Hover only. A selection outline is redundant once the part has been pulled
+          out and framed on its own, and on a TRANSMISSIVE part the inverted-hull
+          shell shows straight through the glass — the crystal rendered as a solid
+          gold disc. */}
+      {hovered && !selected && <Outlines thickness={1} color="#7fa8ff" />}
     </mesh>
   )
 

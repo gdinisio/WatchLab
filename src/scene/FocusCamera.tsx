@@ -1,36 +1,49 @@
 import { useEffect } from 'react'
 import * as THREE from 'three'
-import { useThree } from '@react-three/fiber'
 import type { CameraControls } from '@react-three/drei'
+import { findPart } from '../parts/registry'
+import {
+  INSPECT_FRAMING,
+  INSPECT_MIN_RADIUS,
+  INSPECT_POSITION,
+  partRadius,
+} from '../parts/inspect'
 import { useViewer } from '../state/store'
 
-const _box = new THREE.Box3()
-const _sphere = new THREE.Sphere()
+/** Framing for the whole assembly when nothing is selected. */
+const HOME_RADIUS = 34
 
 /**
- * Flies the camera to frame whichever part is selected.
+ * Drives the camera for inspection mode.
  *
- * The part's world bounds are read at click time, so this works identically whether
- * the assembly is closed up or blown apart.
+ * Selecting a part sends it sliding out to the staging position; the camera reframes
+ * on that FIXED point rather than on the part's current bounds. Chasing live bounds
+ * would aim at empty space for the whole of the slide, since mid-flight the part is
+ * somewhere between the assembly and the staging area.
+ *
+ * The radius comes from the part's own geometry, so a bridge and a 0.4mm jewel are
+ * each framed at a sensible size, with a floor so the smallest components do not end
+ * up filling the screen.
  */
 export function FocusCamera({ controls }: { controls: React.RefObject<CameraControls | null> }) {
   const selected = useViewer((s) => s.selected)
-  const scene = useThree((s) => s.scene)
 
   useEffect(() => {
-    if (!selected || !controls.current) return
-    const target = scene.getObjectByName(`part:${selected}`)
-    if (!target) return
+    const ctrl = controls.current
+    if (!ctrl) return
 
-    _box.setFromObject(target)
-    if (_box.isEmpty()) return
-    _box.getBoundingSphere(_sphere)
-    // Pad so the part does not fill the entire frame.
-    controls.current.fitToSphere(
-      new THREE.Sphere(_sphere.center, Math.max(_sphere.radius * 2.6, 9)),
-      true,
-    )
-  }, [selected, controls, scene])
+    if (!selected) {
+      // Ease back to the whole watch.
+      ctrl.fitToSphere(new THREE.Sphere(new THREE.Vector3(0, 0, 0), HOME_RADIUS), true)
+      return
+    }
+
+    const part = findPart(selected)
+    if (!part) return
+
+    const r = Math.max(partRadius(part.id, part.geometry()) * INSPECT_FRAMING, INSPECT_MIN_RADIUS)
+    ctrl.fitToSphere(new THREE.Sphere(INSPECT_POSITION.clone(), r), true)
+  }, [selected, controls])
 
   return null
 }
