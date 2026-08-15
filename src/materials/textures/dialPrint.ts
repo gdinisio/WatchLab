@@ -39,6 +39,56 @@ function tracked(
   }
 }
 
+/**
+ * Draws letter-spaced text along a circular arc, each glyph rotated to stand upright
+ * relative to the centre.
+ *
+ * `centreAngle` is measured from 6 o'clock going clockwise: the glyph is pushed out
+ * along canvas +y, which is downward, so angle 0 lands at the bottom of the dial.
+ * Increasing angle runs CLOCKWISE round the dial, which from 6 o'clock heads toward
+ * 7 and 8 — i.e. leftward on screen. So `dir` +1 lays glyphs out leftward (and must
+ * therefore consume the string in reverse to still read left-to-right), and -1 lays
+ * them out rightward in normal order. SWISS takes +1, MADE takes -1.
+ */
+function arcText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  radiusMm: number,
+  centreAngle: number,
+  dir: 1 | -1,
+  sizeMm: number,
+  trackingEm: number,
+  weight: string,
+  angleOffset: number,
+) {
+  const px = toPx(sizeMm)
+  ctx.font = `${weight} ${px}px ${FONT}`
+  ctx.textBaseline = 'alphabetic'
+  ctx.textAlign = 'center'
+
+  const glyphs = dir === 1 ? [...text].reverse() : [...text]
+  const radiusPx = toPx(radiusMm)
+  let angle = centreAngle + angleOffset
+
+  for (const ch of glyphs) {
+    const advance = (ctx.measureText(ch).width + px * trackingEm) / radiusPx
+    angle += dir * advance * 0.5
+    ctx.save()
+    ctx.translate(cx(0), cy(0))
+    // Canvas +y is downward, so a clockwise dial angle maps straight to a canvas
+    // rotation of the same sign once the glyph is pushed out along -y.
+    ctx.rotate(angle)
+    // Pushing out along canvas +y already leaves the glyph's up-direction pointing
+    // back toward the dial centre, which is exactly upright at 6 o'clock. Adding a
+    // further PI turn here flipped every letter on its head.
+    ctx.translate(0, radiusPx)
+    ctx.fillText(ch, 0, 0)
+    ctx.restore()
+    angle += dir * advance * 0.5
+  }
+  ctx.textAlign = 'left'
+}
+
 /** Everything printed or applied on the dial face, drawn white-on-black as a mask. */
 function drawPrintMask(ctx: CanvasRenderingContext2D) {
   ctx.fillStyle = '#000'
@@ -68,8 +118,8 @@ function drawPrintMask(ctx: CanvasRenderingContext2D) {
     ctx.stroke()
   }
 
-  // ---- Coronet at 12 ------------------------------------------------------
-  drawCoronet(ctx, cx(0), cy(9.15), toPx(DIAL.coronet.width), toPx(1.55))
+  // No printed coronet at 12: the APPLIED coronet is the 12 marker, and printing
+  // one underneath it just doubles the logo up.
 
   // ---- Upper text block ---------------------------------------------------
   // Reference stacks these tightly under the coronet, with OYSTER PERPETUAL and
@@ -84,16 +134,17 @@ function drawPrintMask(ctx: CanvasRenderingContext2D) {
   tracked(ctx, DIAL.text.certLine1, 0, -4.35, 0.42, 0.07, '400')
   tracked(ctx, DIAL.text.certLine2, 0, -5.32, 0.42, 0.07, '400')
 
-  // ---- SWISS MADE at the rim, split by a coronet -------------------------
-  // The tiny coronet BETWEEN the two words is the detail everyone forgets.
-  const swissY = -13.1
-  const swissSize = 0.4
-  const crownW = 0.62
-  ctx.font = `600 ${toPx(swissSize)}px ${FONT}`
-  const half = ctx.measureText('SWISS ').width / 2 / toPx(1)
-  tracked(ctx, 'SWISS', -(crownW / 2 + half * 0.62), swissY, swissSize, 0.12, '600')
-  tracked(ctx, 'MADE', crownW / 2 + half * 0.62, swissY, swissSize, 0.12, '600')
-  drawCoronet(ctx, cx(0), cy(swissY - 0.04), toPx(crownW), toPx(crownW * 0.8))
+  // ---- SWISS MADE, curved along the rim and split by a coronet ------------
+  // It follows the dial edge rather than sitting on a straight baseline, and the
+  // tiny coronet BETWEEN the two words is the detail everyone forgets.
+  const swissRadius = 13.15
+  const swissSize = 0.46
+  const crownW = 0.72
+  // Angular half-gap the coronet occupies, plus a little breathing room.
+  const gapHalf = (crownW * 0.85) / swissRadius
+  arcText(ctx, 'SWISS', swissRadius, 0, 1, swissSize, 0.1, '600', gapHalf)
+  arcText(ctx, 'MADE', swissRadius, 0, -1, swissSize, 0.1, '600', -gapHalf)
+  drawCoronet(ctx, cx(0), cy(-swissRadius + crownW * 0.42), toPx(crownW), toPx(crownW * 0.82))
 }
 
 export interface DialMaps {

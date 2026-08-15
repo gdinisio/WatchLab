@@ -24,17 +24,23 @@ function buildLug(): THREE.BufferGeometry {
   // of the case (which an earlier pass did) makes the watch read as a chunky diver
   // rather than a dress watch, and it visually thickens the whole case.
   //
-  // The root must be buried at the lug's OUTERMOST x, not its centre. A lug spans
-  // x 10.0-13.45, and the bulged flank pulls in as it goes: at x=13.7 and y=-3 the
-  // case surface only reaches |z| ~9.6. Rooting at 11.5 therefore left the corner
-  // hanging outside the case as a visible seam. 9.2 stays buried over the full
-  // height range.
-  shape.moveTo(-9.2, 0.55)
-  shape.quadraticCurveTo(-15.6, 0.1, -19.3, -1.15)    // top face sweeping down and out
-  shape.quadraticCurveTo(-21.0, -1.95, -21.4, -3.0)   // rounded outer tip
+  // The root edge is CURVED, and its depth is bounded at BOTH ends.
+  //
+  // Too shallow and the outer corner hangs off the bulged flank as a seam. Too deep
+  // and the opposite failure appears: at the lug's INNER face (x=10) a root at
+  // z=9.2 sits only 13.6mm from centre — inside the 15mm case bore — so the root
+  // surfaced through the movement cavity as a pale block above the dial plane.
+  //
+  // Rooting at 11.4 up top keeps the inner corner at 15.2mm, just clear of the bore,
+  // while the curve lets the root ride inward lower down where the flank has pulled
+  // in. The top is also held under the dial so any residual intrusion is covered.
+  shape.moveTo(-11.4, 0.2)
+  shape.quadraticCurveTo(-15.6, -0.15, -19.3, -1.35)  // top face sweeping down and out
+  shape.quadraticCurveTo(-21.0, -2.1, -21.4, -3.05)   // rounded outer tip
   shape.quadraticCurveTo(-21.6, -3.9, -20.2, -4.3)
-  shape.quadraticCurveTo(-15.8, -5.05, -12.0, -5.4)   // underside tucking back in
-  shape.lineTo(-9.2, -5.5)
+  shape.quadraticCurveTo(-15.8, -5.0, -12.4, -5.3)    // underside tucking back in
+  shape.lineTo(-10.0, -5.4)
+  shape.quadraticCurveTo(-10.6, -2.4, -11.4, 0.2)     // curved root, following the flank
   shape.closePath()
 
   const g = new THREE.ExtrudeGeometry(shape, {

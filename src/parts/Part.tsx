@@ -90,16 +90,20 @@ export function Part({ def, lib, maxOrder, simpleGlass = false }: PartProps) {
             metalness={0}
             // AR coating: cuts surface reflectance to well under 1%, so the crystal
             // all but disappears instead of mirroring a softbox over the dial.
-            specularIntensity={lib.sapphire.specularIntensity}
+            specularIntensity={def.arCoated === false ? 0.85 : lib.sapphire.specularIntensity}
             // Only a whisper of the blue-violet coating flash at grazing angles.
             // Pushed higher it turns into a milky film across the whole dial.
             iridescence={0.08}
             iridescenceIOR={1.3}
             iridescenceThicknessRange={[200, 340]}
-            envMapIntensity={lib.sapphire.envMapIntensity}
+            envMapIntensity={def.arCoated === false ? 1.3 : lib.sapphire.envMapIntensity}
           />
         ) : (
-          <MeshTransmissionMaterial {...lib.sapphire} />
+          <MeshTransmissionMaterial
+            {...lib.sapphire}
+            specularIntensity={def.arCoated === false ? 0.85 : lib.sapphire.specularIntensity}
+            envMapIntensity={def.arCoated === false ? 1.3 : lib.sapphire.envMapIntensity}
+          />
         ))}
       {(hovered || selected) && (
         <Outlines thickness={selected ? 1.6 : 1} color={selected ? '#c8b273' : '#7fa8ff'} />

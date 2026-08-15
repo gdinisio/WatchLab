@@ -112,7 +112,7 @@ export const DIAL = {
   coronet: {
     /** Applied coronet sits above the ROLEX wordmark at 12. */
     distanceFromCentre: 9.4,
-    width: 1.95,
+    width: 2.2,
   },
   text: {
     brand: 'ROLEX',

@@ -15,6 +15,7 @@ import { useViewer } from './state/store'
  *   ?cam=x,y,z        camera placement
  *   ?explode=0..1     initial assembly state
  *   ?hud=off          hide the overlay UI (for clean reference renders)
+ *   ?groups=case,dial isolate part groups (diagnostics)
  *   ?movement=0..1    initial calibre state
  *   ?fx=off / ?dpr=n  handled inside Viewer
  */
@@ -34,6 +35,7 @@ function query() {
     explode: num('explode'),
     movement: num('movement'),
     hud: q.get('hud') !== 'off',
+    groups: q.get('groups')?.split(',').filter(Boolean),
   }
 }
 
@@ -50,14 +52,24 @@ function Loader({ label }: { label: string }) {
 export function App() {
   const lib = useMaterials()
   const controls = useRef<CameraControls | null>(null)
-  const { view, simpleGlass, cam, explode, movement, hud } = query()
+  const { view, simpleGlass, cam, explode, movement, hud, groups } = query()
   const setExplodeT = useViewer((s) => s.setExplodeT)
   const setMovementT = useViewer((s) => s.setMovementT)
 
   useEffect(() => {
     if (explode !== undefined) setExplodeT(explode)
     if (movement !== undefined) setMovementT(movement)
-  }, [explode, movement, setExplodeT, setMovementT])
+    if (groups) {
+      useViewer.setState({
+        activeGroups: {
+          case: groups.includes('case'),
+          dial: groups.includes('dial'),
+          movement: groups.includes('movement'),
+          bracelet: groups.includes('bracelet'),
+        },
+      })
+    }
+  }, [explode, movement, groups, setExplodeT, setMovementT])
 
   if (!lib) return <Loader label="Generating procedural textures" />
 

@@ -47,6 +47,12 @@ export interface PartDef {
   submovement?: boolean
   /** Sapphire parts render with MeshTransmissionMaterial instead of a shared material. */
   transmissive?: boolean
+  /**
+   * Whether this sapphire carries anti-reflective coating. Rolex coats the crystal's
+   * underside, but the Cyclops is a raised lens that stays bright and obvious — mute
+   * its reflections the same way and the magnifier vanishes entirely.
+   */
+  arCoated?: boolean
   /** Emissive lume geometry, driven by lume mode. */
   luminous?: boolean
   renderOrder?: number

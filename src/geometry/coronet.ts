@@ -9,11 +9,11 @@ import * as THREE from 'three'
  * Prong layout as fractions of half-width / height.
  */
 const PRONGS = [
-  { x: 0.0, y: 1.0, r: 0.14 },
-  { x: 0.54, y: 0.88, r: 0.125 },
-  { x: -0.54, y: 0.88, r: 0.125 },
-  { x: 1.0, y: 0.6, r: 0.12 },
-  { x: -1.0, y: 0.6, r: 0.12 },
+  { x: 0.0, y: 1.0, r: 0.145 },
+  { x: 0.5, y: 0.93, r: 0.13 },
+  { x: -0.5, y: 0.93, r: 0.13 },
+  { x: 1.0, y: 0.7, r: 0.125 },
+  { x: -1.0, y: 0.7, r: 0.125 },
 ]
 
 /**
@@ -26,10 +26,10 @@ const PRONGS = [
 const STEM_RATIO = 0.3
 
 /** Where every stem converges, as a fraction of height. */
-const WAIST_Y = 0.26
+const WAIST_Y = 0.55
 const BASE_Y = 0.0
-const BASE_HALF_WIDTH = 0.74
-const BASE_HEIGHT = 0.15
+const BASE_HALF_WIDTH = 0.86
+const BASE_HEIGHT = 0.2
 /** Half-width of the neck joining the waist to the base bar. */
 const NECK_HALF_WIDTH = 0.17
 
