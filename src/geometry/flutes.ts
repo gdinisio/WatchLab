@@ -17,13 +17,28 @@ interface Rib {
  * narrow ridge of a genuinely machined flute, while the residual cosine keeps the
  * very tip of each ridge from being a shading-breaking knife edge.
  */
-function fluteWave(phase: number, sharpness: number, triangleness: number): number {
+function fluteWave(
+  phase: number,
+  sharpness: number,
+  triangleness: number,
+  crestBias: number,
+): number {
   const cos = Math.cos(phase)
   const t = (phase / (Math.PI * 2)) % 1
   const tri = 1 - 4 * Math.abs((t < 0 ? t + 1 : t) - 0.5)
   const blended = cos * (1 - triangleness) + tri * triangleness
-  // Sign-preserving power so crest and valley stay symmetric about the base radius.
-  return Math.sign(blended) * Math.pow(Math.abs(blended), sharpness)
+  const shaped = Math.sign(blended) * Math.pow(Math.abs(blended), sharpness)
+
+  /**
+   * The profile is ASYMMETRIC: flat-topped ridges, sharp V valleys.
+   *
+   * Close inspection of the reference bezel shows each ridge carries a narrow flat
+   * land while the groove between comes to a point. A symmetric triangle gives knife
+   * edges at both ends, which sparkle wrongly — the flats are what hold a steady
+   * highlight as the watch turns, and the sharp valleys are what read as cut.
+   */
+  const n = (shaped + 1) / 2
+  return Math.pow(n, crestBias) * 2 - 1
 }
 
 function densify(ribs: Rib[], perSegment: number): Rib[] {
@@ -64,6 +79,8 @@ export interface FlutedBezelOptions {
    * and loses the crisp alternating light/dark facets that make the bezel sparkle.
    */
   triangleness?: number
+  /** <1 broadens the ridge into a flat land and sharpens the valley. */
+  crestBias?: number
   segmentsPerFlute?: number
   creaseAngle?: number
 }
@@ -89,6 +106,7 @@ export function buildFlutedBezel(opts: FlutedBezelOptions): THREE.BufferGeometry
     fluteDepth,
     sharpness = 1.0,
     triangleness = 0.94,
+    crestBias = 0.72,
     segmentsPerFlute = 18,
     creaseAngle = Math.PI / 12,
   } = opts
@@ -129,7 +147,7 @@ export function buildFlutedBezel(opts: FlutedBezelOptions): THREE.BufferGeometry
     const i = Math.min(profile.length - 1, Math.round(v * (profile.length - 1)))
     const { r, y, w } = profile[i]
     const theta = u * Math.PI * 2
-    const shaped = fluteWave(theta * fluteCount, sharpness, triangleness)
+    const shaped = fluteWave(theta * fluteCount, sharpness, triangleness, crestBias)
     const rr = r + shaped * fluteDepth * 0.5 * w
     target.set(Math.sin(theta) * rr, y, Math.cos(theta) * rr)
   })
@@ -172,7 +190,7 @@ export function buildKnurledBand(opts: {
       const i = Math.min(profile.length - 1, Math.round(v * (profile.length - 1)))
       const { r, y, w } = profile[i]
       const theta = u * Math.PI * 2
-      const shaped = fluteWave(theta * notches, sharpness, triangleness)
+      const shaped = fluteWave(theta * notches, sharpness, triangleness, 0.85)
       // Offset so the teeth are cut INTO the nominal radius rather than proud of it.
       const rr = r + shaped * depth * 0.5 * w - depth * 0.5 * w
       target.set(Math.sin(theta) * rr, y, Math.cos(theta) * rr)

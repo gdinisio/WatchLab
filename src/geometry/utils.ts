@@ -125,3 +125,64 @@ export function parametricSurface(
   g.computeVertexNormals()
   return g
 }
+
+/**
+ * Uniform 1-to-4 triangle subdivision, applied `levels` times.
+ *
+ * Needed before any per-vertex displacement of an extruded piece. `ExtrudeGeometry`
+ * triangulates its caps from the outline alone, so the interior of a 20mm-wide face
+ * may be spanned by two triangles; displacing those gives a faceted tent instead of
+ * a smooth arc. Subdividing every triangle rather than only the large ones keeps the
+ * mesh watertight — splitting selectively leaves T-junctions, which open into
+ * hairline cracks the moment the surface is displaced.
+ */
+export function subdivide(g: THREE.BufferGeometry, levels = 1): THREE.BufferGeometry {
+  let work = g.index ? g.toNonIndexed() : g
+
+  for (let pass = 0; pass < levels; pass++) {
+    const src = work.getAttribute('position') as THREE.BufferAttribute
+    const srcUv = work.getAttribute('uv') as THREE.BufferAttribute | undefined
+    const pos: number[] = []
+    const uv: number[] = []
+
+    interface Vertex { p: number[]; t: number[] }
+    const vert = (n: number): Vertex => ({
+      p: [src.getX(n), src.getY(n), src.getZ(n)],
+      t: srcUv ? [srcUv.getX(n), srcUv.getY(n)] : [0, 0],
+    })
+    // Triangles are split independently, with no shared-edge bookkeeping: a shared
+    // edge's midpoint is averaged from the same two endpoints on both sides, so the
+    // two copies land on bit-identical coordinates and the seam stays closed.
+    const mid = (a: Vertex, b: Vertex): Vertex => ({
+      p: a.p.map((v, i) => (v + b.p[i]) / 2),
+      t: a.t.map((v, i) => (v + b.t[i]) / 2),
+    })
+    const emit = (...tri: Vertex[]) => {
+      for (const v of tri) {
+        pos.push(v.p[0], v.p[1], v.p[2])
+        if (srcUv) uv.push(v.t[0], v.t[1])
+      }
+    }
+
+    for (let i = 0; i < src.count; i += 3) {
+      const a = vert(i)
+      const b = vert(i + 1)
+      const c = vert(i + 2)
+      const ab = mid(a, b)
+      const bc = mid(b, c)
+      const ca = mid(c, a)
+      emit(a, ab, ca)
+      emit(ab, b, bc)
+      emit(ca, bc, c)
+      emit(ab, bc, ca)
+    }
+
+    const out = new THREE.BufferGeometry()
+    out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+    if (srcUv) out.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2))
+    out.computeVertexNormals()
+    work = out
+  }
+
+  return work
+}

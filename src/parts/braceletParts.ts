@@ -1,8 +1,8 @@
 import * as THREE from 'three'
 import { AXIS, BRACELET, CASE } from '../config/datejust36'
 import {
-  braceletPlacements, buildClaspCoronet, buildClaspCover, buildEndLink, buildLinkCentre,
-  buildLinkFlanks, buildLinkPin, claspTransform,
+  END_LINK_Z, braceletPlacements, buildClaspCoronet, buildClaspCover, buildEndLinkCentre,
+  buildEndLinkFlanks, buildLinkCentre, buildLinkFlanks, buildLinkPin, claspTransform,
 } from './bracelet'
 import { Y } from './layout'
 import type { PartDef, PartGroup } from './types'
@@ -28,7 +28,7 @@ const endLinkInstance = (side: 1 | -1) => ({
   count: 1,
   transform: () =>
     new THREE.Matrix4().compose(
-      new THREE.Vector3(0, Y.braceletPlane, side * (CASE.lugToLug / 2 - 4.6)),
+      new THREE.Vector3(0, Y.braceletPlane, side * END_LINK_Z),
       new THREE.Quaternion().setFromEuler(new THREE.Euler(0, side === 1 ? 0 : Math.PI, 0)),
       new THREE.Vector3(1, 1, 1),
     ),
@@ -36,20 +36,37 @@ const endLinkInstance = (side: 1 | -1) => ({
 
 const runParts: PartDef[] = SIDES.flatMap(({ key, side, axis, label }) => [
   {
-    id: `end-link-${key}`,
-    name: `End Link · ${label}`,
+    id: `end-link-centre-${key}`,
+    name: `End Link Centre · ${label}`,
     group,
-    geometry: buildEndLink,
-    material: 'steelBrushed',
+    // The polished stripe has to start AT THE CASE. Running a single brushed end link
+    // between the case and the first Oyster link breaks the centre highlight exactly
+    // where the eye follows it off the watch.
+    material: 'steelPolished',
+    geometry: buildEndLinkCentre,
     instances: endLinkInstance(side),
     explode: { axis, distance: 16, order: 2 },
     spec: {
       material: '904L Oystersteel',
-      function: 'Solid end link filling the gap between the lugs, curved to sit flush against the case.',
-      dimension: `${CASE.lugWidth} mm`,
-      finish: 'Satin-brushed',
+      function: 'Polished centre of the solid end link, carrying the bracelet’s centre stripe out of the case.',
+      dimension: `${CASE.lugWidth} mm across the lugs`,
+      finish: 'Mirror-polished',
     },
     ...(key === '6' ? { labelOffset: [0, -4, 8] as const } : {}),
+  },
+  {
+    id: `end-link-flanks-${key}`,
+    name: `End Link Flanks · ${label}`,
+    group,
+    geometry: buildEndLinkFlanks,
+    material: 'steelBrushed',
+    instances: endLinkInstance(side),
+    explode: { axis, distance: 22, order: 2 },
+    spec: {
+      material: '904L Oystersteel',
+      function: 'Satin horns of the end link, cut to the case’s circumference so they close the gap between the lugs.',
+      finish: 'Satin-brushed',
+    },
   },
   {
     id: `link-centres-${key}`,

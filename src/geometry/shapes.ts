@@ -57,3 +57,54 @@ export function flatExtrude(
   g.rotateX(-Math.PI / 2)
   return g
 }
+
+/**
+ * Extrudes a section drawn in the X–Y plane along Z, centred on the origin.
+ *
+ * The companion to `flatExtrude`, and the right tool whenever the piece is CURVED
+ * ACROSS its extrusion — a bracelet link, a curved case band. Putting the curve in
+ * the section outline means it is sampled as finely as the shape is, where extruding
+ * the plan outline and displacing the caps afterwards cannot work at all: an
+ * extruded cap is earcut from its outline alone, so its interior is a handful of
+ * triangles spanning the whole piece and any arch collapses into a tent.
+ */
+export function sectionExtrude(
+  shape: THREE.Shape | THREE.Shape[],
+  opts: { depth: number; bevel?: number; bevelSegments?: number; curveSegments?: number },
+): THREE.BufferGeometry {
+  const { depth, bevel = 0.05, bevelSegments = 3, curveSegments = 12 } = opts
+  const g = new THREE.ExtrudeGeometry(shape, {
+    depth,
+    bevelEnabled: bevel > 0,
+    bevelThickness: bevel,
+    bevelSize: bevel,
+    bevelOffset: 0,
+    bevelSegments,
+    curveSegments,
+  })
+  g.translate(0, 0, -depth / 2)
+  return g
+}
+
+/**
+ * Bends a piece into a shallow transverse arc across X, crown at x = 0.
+ *
+ * For pieces whose plan outline rules out `sectionExtrude` — an end link hugging the
+ * round case, a clasp cover. Run `subdivide` first or the displacement has nothing
+ * to act on across the middle of the faces.
+ */
+export function archAcrossX(
+  g: THREE.BufferGeometry,
+  halfWidth: number,
+  rise: number,
+  exponent = 2.4,
+): THREE.BufferGeometry {
+  const pos = g.getAttribute('position') as THREE.BufferAttribute
+  for (let i = 0; i < pos.count; i++) {
+    const t = Math.min(1, Math.abs(pos.getX(i)) / halfWidth)
+    pos.setY(i, pos.getY(i) - rise * Math.pow(t, exponent))
+  }
+  pos.needsUpdate = true
+  g.computeVertexNormals()
+  return g
+}

@@ -32,7 +32,16 @@ export const Y = {
   crystalBottom: 3.05,
   crystalTop: 4.3,
 
-  braceletPlane: -1.2,
+  /**
+   * Crown of the bracelet's transverse arc, set against the LUG TIP.
+   *
+   * The tip spans -4.2 to -1.6, and the bracelet has to nest inside it: at -2.3 the
+   * arched outer edges of the links land just within that span, while the polished
+   * crown rides a little proud — which is what the real bracelet does, because the
+   * lug's own top face falls away toward its inner edge. Sitting the bracelet lower
+   * drops its edges clear of the lugs and opens a wedge of daylight between them.
+   */
+  braceletPlane: -2.3,
 } as const
 
 /** Radial position of the crown and date window: 3 o'clock is +X. */

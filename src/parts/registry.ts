@@ -237,7 +237,9 @@ export const CASE_PARTS: PartDef[] = [
     position: [0, Y.braceletPlane, 0],
     instances: {
       count: 2,
-      transform: (i) => new THREE.Matrix4().makeTranslation(0, 0, i === 0 ? -20.6 : 20.6),
+      // Just INSIDE the end link's outer edge. Sitting exactly on it put a polished
+      // cylinder in the joint between the end link and the first Oyster link.
+      transform: (i) => new THREE.Matrix4().makeTranslation(0, 0, i === 0 ? -19.8 : 19.8),
     },
     explode: { axis: AXIS.down, distance: 9, order: 3 },
     spec: {

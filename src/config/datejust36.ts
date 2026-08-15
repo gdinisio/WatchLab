@@ -180,11 +180,71 @@ export const BRACELET = {
   widthAtLug: 20,
   widthAtClasp: 16,
   linkLength: 5.1,
-  linkThickness: 1.85,
+  /**
+   * Plate thickness of one link.
+   *
+   * Sized against the LUG TIP, which spans 2.6mm vertically. Together with the arch
+   * below, the link's outer edges have to nest inside that span so the bracelet
+   * meets the case flush rather than hanging under it.
+   */
+  linkThickness: 2.35,
   /** Links per side, excluding the end link. */
   linksPerSide: 9,
-  /** Gentle drape arc so the bracelet falls naturally away from the case. */
-  drapeRadius: 33,
+  /**
+   * The bracelet is CURVED ACROSS ITS WIDTH, not a stack of flat plates.
+   *
+   * Every link is a shallow arc that wraps toward the wrist: the polished centre
+   * rides the crown of the arc and the satin flanks fall away and roll under. This
+   * is what gives an Oyster its rolling centre highlight with the flanks reading
+   * darker either side — model the links flat and the whole bracelet goes dead, no
+   * matter how good the materials are.
+   *
+   * `rise` is the drop from the crown to the outer edge at the nominal 20mm width;
+   * the exponent above 2 keeps the centre nearly flat and puts the fall-off out at
+   * the edges, which is how the real section is machined.
+   *
+   * Rise is bounded by the LUGS, not by taste: the bracelet's outer edges have to
+   * nest inside the 2.6mm span of the lug tip. Arch it harder and the edges drop out
+   * of that span, opening a wedge of daylight between lug and end link.
+   */
+  arch: { rise: 0.85, exponent: 2.4 },
+  /**
+   * Three-piece link proportions, as fractions of the bracelet width.
+   *
+   * Measured off the reference: the polished centre is a little under half the
+   * bracelet, and the two satin flanks take almost all of the rest, leaving only a
+   * hairline seam. `seam` is the millimetre gap between one link and the next along
+   * the run — small enough to read as a joint, wide enough that neighbouring links
+   * do not foul each other where the drape curls tightest.
+   */
+  link: {
+    centre: 0.40,
+    flank: 0.285,
+    flankOffset: 0.348,
+    seam: 0.22,
+    /** How far the centre section stands above the flanks. */
+    centreProud: 0.12,
+    /**
+     * Radius broken onto every long edge of a link section, and the chamfer rolled
+     * onto its ends.
+     *
+     * Both are deliberately small. Together with the seam they set how wide the joint
+     * between links reads, and at 0.3/0.13 the bracelet came out looking like a row
+     * of separate rounded tiles rather than one tightly-jointed band.
+     */
+    edgeRadius: 0.22,
+    endChamfer: 0.09,
+  },
+  /**
+   * The drape TIGHTENS as it falls.
+   *
+   * A constant-radius arc is the giveaway of a CG bracelet: real ones leave the case
+   * almost level — the end link and the first couple of links sit flat under the
+   * lugs — and then curl progressively harder under their own weight. Radius runs
+   * from `startRadius` at the case to `endRadius` at the clasp, biased by `curl` so
+   * most of the bend happens in the last third.
+   */
+  drape: { startRadius: 62, endRadius: 18, curl: 1.15, startAngle: 0.06 },
   clasp: { length: 22, width: 16, thickness: 3.1 },
 } as const
 
