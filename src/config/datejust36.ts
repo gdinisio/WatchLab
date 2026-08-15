@@ -36,17 +36,16 @@ export const BEZEL = {
    *
    * Measured off the isolated-bezel reference: each flute reads roughly as WIDE as
    * the bezel band is deep. The band here is 2.75mm, and at mid-radius (16.6mm) the
-   * circumference is 104mm, so 44 flutes gives a 2.37mm pitch — near square, which
-   * matches. At 60 the pitch fell to 1.74mm and individual flutes stopped being
-   * separable, which is exactly the failure being corrected.
+   * circumference is 104mm, so 56 flutes gives a 1.86mm pitch. 60 was too fine to
+   * separate at all; 44 read too wide against the reference. This sits between.
    */
-  fluteCount: 44,
+  fluteCount: 56,
   /**
    * Peak-to-valley depth. With a 2.37mm pitch this puts the facet slope near 22°,
    * steep enough for each face to catch light distinctly. At 0.30 the facets were
    * only ~14° off flat and washed into one another.
    */
-  fluteDepth: 0.48,
+  fluteDepth: 0.46,
   /** 0 = pure cosine, higher = sharper crests / broader polished valleys. */
   fluteSharpness: 1.0,
 } as const

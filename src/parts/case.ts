@@ -44,17 +44,31 @@ const LUG = {
    * the exploded view the case and movement travel apart anyway.
    */
   rootZ: 8.0,
-  /** Lug-to-lug ends up ~42mm on a 36mm case, matching the reference 1.17 ratio. */
-  tipZ: 21.0,
+  /** Lug-to-lug ~44mm on a 36mm case: the 1.22 ratio measured off the plan view. */
+  tipZ: 22.0,
   /**
-   * Outer face beyond the shoulder. Near the root the edge FOLLOWS THE CASE CIRCLE
-   * exactly (see lugSection), then blends into this gentle straight taper — which is
-   * what makes the lug look grown out of the case rather than merely adjacent to it.
+   * The lug is driven by its WIDTH, not by an outer-edge radius.
+   *
+   * Chasing the case circle put all the taper in the buried root: by the time the
+   * lug emerged, the edge had already flattened to near-parallel, so the visible
+   * part was a rectangle. Tapering the width directly guarantees the narrowing
+   * happens over the part you can actually see.
+   *
+   * The plan-view reference also settles a question the side views could not: the
+   * lug outline flares OUTSIDE the bezel circle before tapering to the tip. Case
+   * plus lugs read as a cushion, not a circle with tabs stuck on, so the shoulder
+   * is meant to stand a little proud of the bezel.
    */
-  outerAtMid: 13.7,
-  outerAtTip: 12.9,
-  /** How far along the lug the circle-following blends out into the straight taper. */
-  blendEnd: 0.5,
+  /**
+   * 5.8 was still too narrow: the shoulder emerged at radius 18.5 against an 18mm
+   * bezel, so the bezel hid all but a sliver and the visible lug was only its thin
+   * outer end. At 7.5 the shoulder sits about 19.2mm out — properly proud of the
+   * bezel, which is what makes the lug read as a broad talon in plan view.
+   */
+  widthAtRoot: 7.5,
+  widthAtTip: 2.1,
+  /** <1 keeps the shoulder full-bodied and pushes the narrowing outward. */
+  taperExponent: 0.7,
   topAtRoot: 0.3,
   topAtTip: -1.6,
   bottomAtRoot: -5.4,
@@ -77,14 +91,11 @@ function lugSection(v: number): LugSection {
   const lerp = (a: number, b: number, t: number) => a + (b - a) * t
   const z = -lerp(LUG.rootZ, LUG.tipZ, v)
 
-  // Where the case still exists at this z, the lug's outer edge lies ON its circle,
-  // so the two silhouettes are one continuous curve. Past the shoulder the circle
-  // collapses toward zero, so the edge blends into a straight gentle taper instead.
-  const circle = Math.sqrt(Math.max(0, FLANK_MAX * FLANK_MAX - z * z))
-  const straight = lerp(LUG.outerAtMid, LUG.outerAtTip, v)
-  const t = Math.min(1, v / LUG.blendEnd)
-  const blend = t * t * (3 - 2 * t) // smoothstep
-  const xOut = Math.max(circle * (1 - blend) + straight * blend, LUG.innerX + 0.6)
+  // Width tapers continuously along the whole lug. At the root it lands within a
+  // tenth of a millimetre of the case circle, so the shoulder still grows out of
+  // the case seamlessly, but the narrowing now runs the full visible length.
+  const width = lerp(LUG.widthAtRoot, LUG.widthAtTip, Math.pow(v, LUG.taperExponent))
+  const xOut = LUG.innerX + width
   const yTop = lerp(LUG.topAtRoot, LUG.topAtTip, Math.pow(v, 1.5))
   const yBot = lerp(LUG.bottomAtRoot, LUG.bottomAtTip, Math.pow(v, 1.7))
 
