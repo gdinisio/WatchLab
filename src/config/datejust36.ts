@@ -112,7 +112,13 @@ export const DIAL = {
   coronet: {
     /** Applied coronet sits above the ROLEX wordmark at 12. */
     distanceFromCentre: 9.4,
-    width: 2.2,
+    /**
+     * Measured off the reference dial: the coronet is almost exactly as WIDE as an
+     * applied baton is LONG. Since the batons are already matched to reference at
+     * 3.7mm, that pins this without guesswork. Height follows the artwork's own
+     * aspect. Sized at 2.2 it read as a small emblem rather than the hour marker.
+     */
+    width: 3.6,
   },
   text: {
     brand: 'ROLEX',

@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { BEZEL, CASE, CASEBACK, CROWN, CRYSTAL } from '../config/datejust36'
 import { buildFlutedBezel, buildKnurledBand } from '../geometry/flutes'
-import { coronetShapes } from '../geometry/coronet'
+import { coronetShapes } from '../geometry/logoSvg'
 import { buildLathe } from '../geometry/lathe'
 import { flatExtrude } from '../geometry/shapes'
 import { cached, type P2, mergeAll } from '../geometry/utils'
@@ -268,7 +268,7 @@ export function buildCrown(): THREE.BufferGeometry {
     })
 
     // Coronet, sitting in the dish and standing just shy of the surrounding land.
-    const coronet = flatExtrude(coronetShapes(radius * 1.28, radius * 1.0), {
+    const coronet = flatExtrude(coronetShapes(radius * 1.28), {
       thickness: 0.19,
       bevel: 0.025,
       bevelSegments: 2,

@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { DIAL } from '../../config/datejust36'
-import { drawCoronet } from '../../geometry/coronet'
+import { drawCoronet, drawWordmark } from '../../geometry/logoSvg'
 import { fillRGB, finish, makeSurface } from './canvas'
 import { makeAngularNoise, radialDirection } from './sunburst'
 import { normalFromHeight } from './normalFromHeight'
@@ -15,12 +15,6 @@ const cx = (xmm: number) => SIZE / 2 + toPx(xmm)
 const cy = (ymm: number) => SIZE / 2 - toPx(ymm)
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif'
-/**
- * The ROLEX wordmark is a SERIF face, matching the corporate logotype — while
- * OYSTER PERPETUAL and DATEJUST below it stay sans. Setting the whole dial in one
- * face loses that contrast, which is a large part of how the dial reads.
- */
-const SERIF = 'Garamond, "Times New Roman", Times, serif'
 
 /** Draws letter-spaced, centred text. Rolex dial text is widely tracked. */
 function tracked(
@@ -131,7 +125,9 @@ function drawPrintMask(ctx: CanvasRenderingContext2D) {
   // ---- Upper text block ---------------------------------------------------
   // Reference stacks these tightly under the coronet, with OYSTER PERPETUAL and
   // DATEJUST clearly legible rather than shrunk to a whisper beneath ROLEX.
-  tracked(ctx, DIAL.text.brand, 0, 6.45, 1.62, 0.1, '600', SERIF)
+  // The wordmark is drawn from the real outlines, so the proprietary letterforms
+  // are exact rather than stood in for by whatever serif happens to be installed.
+  drawWordmark(ctx, cx(0), cy(6.35), toPx(6.6))
   tracked(ctx, DIAL.text.line1, 0, 4.85, 0.8, 0.09, '500')
   tracked(ctx, DIAL.text.line2, 0, 3.55, 0.86, 0.09, '600')
 

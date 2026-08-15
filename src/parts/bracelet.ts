@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { BRACELET, CASE } from '../config/datejust36'
-import { coronetShapes } from '../geometry/coronet'
+import { coronetShapes } from '../geometry/logoSvg'
 import { flatExtrude, roundedRect } from '../geometry/shapes'
 import { cached, mergeAll } from '../geometry/utils'
 import { Y } from './layout'
@@ -96,7 +96,7 @@ export function buildClaspCover(): THREE.BufferGeometry {
 
 export function buildClaspCoronet(): THREE.BufferGeometry {
   return cached('brc/claspCoronet', () => {
-    const shapes = coronetShapes(5.2, 4.1)
+    const shapes = coronetShapes(5.2)
     const g = flatExtrude(shapes, { thickness: 0.3, bevel: 0.05, bevelSegments: 2, curveSegments: 14 })
     g.computeBoundingBox()
     const b = g.boundingBox!

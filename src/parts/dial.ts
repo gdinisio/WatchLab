@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { DIAL } from '../config/datejust36'
-import { coronetShapes } from '../geometry/coronet'
+import { coronetShapes, CORONET_ASPECT } from '../geometry/logoSvg'
 import { buildLathe, planarUV } from '../geometry/lathe'
 import { flatExtrude, roundedRect } from '../geometry/shapes'
 import { cached, mergeAll } from '../geometry/utils'
@@ -102,8 +102,8 @@ export function buildIndexLume(double = false): THREE.BufferGeometry {
 /** Applied coronet above the wordmark at 12. */
 export function buildCoronetApplique(): THREE.BufferGeometry {
   return cached('dial/coronet', () => {
-    // The reference mark is very nearly square in proportion.
-    const shapes = coronetShapes(DIAL.coronet.width, DIAL.coronet.width * 1.02)
+    // Height comes from the artwork's own aspect, not a guess.
+    const shapes = coronetShapes(DIAL.coronet.width, DIAL.coronet.width / CORONET_ASPECT)
     const g = flatExtrude(shapes, { thickness: 0.28, bevel: 0.035, bevelSegments: 2, curveSegments: 16 })
     // Shape origin is the base of the crown; centre it on its own bounding box.
     g.computeBoundingBox()
