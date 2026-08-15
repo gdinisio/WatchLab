@@ -36,11 +36,11 @@ export const BEZEL = {
    * TUNE VISUALLY against reference: flute pitch should read ~2.5mm at the outer edge.
    * At r=18mm, circumference is ~113mm, so ~44 flutes gives a ~2.57mm pitch.
    */
-  fluteCount: 54,
+  fluteCount: 60,
   /** Peak-to-valley depth of each flute. */
-  fluteDepth: 0.34,
+  fluteDepth: 0.30,
   /** 0 = pure cosine, higher = sharper crests / broader polished valleys. */
-  fluteSharpness: 0.85,
+  fluteSharpness: 1.0,
 } as const
 
 export const CRYSTAL = {

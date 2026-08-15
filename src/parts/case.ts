@@ -5,58 +5,109 @@ import { buildFlutedBezel, buildKnurledBand } from '../geometry/flutes'
 import { coronetShapes } from '../geometry/logoSvg'
 import { buildLathe } from '../geometry/lathe'
 import { flatExtrude } from '../geometry/shapes'
-import { cached, type P2, mergeAll } from '../geometry/utils'
+import { cached, parametricSurface, type P2, mergeAll } from '../geometry/utils'
 import { Y } from './layout'
 
 /**
- * Each lug is this thick across X, and a pair straddles the 20mm bracelet gap — so
- * the total width across the lugs is 20 + 2×this. At 3.45 that came to ~29mm on a
- * 36mm case, which reads as a chunky sports watch; the reference sits nearer 26mm.
+ * The lug, built as a LOFT rather than an extrusion.
+ *
+ * The previous version extruded a side profile along X at constant thickness, which
+ * meant that in PLAN VIEW every lug was a rectangle with flat outer faces — the
+ * reason they read as slabs bolted to the case. A real Oyster lug does two things
+ * that a constant extrusion cannot:
+ *
+ *  - it TAPERS, broad where it leaves the case and narrow at the bracelet, and
+ *  - its outer face is CURVED, continuing the round flank of the case so the two
+ *    read as one machined mass rather than a case with fins attached.
+ *
+ * So the lug is lofted instead: a rounded cross-section swept along its length, with
+ * the box it fills shrinking and dropping as it goes. The section is a superellipse,
+ * which gives softly rounded corners without needing explicit fillets.
  */
-const LUG_THICKNESS = 2.9
+const LUG = {
+  /** Inner faces sit exactly `lugWidth` apart so the bracelet fits between them. */
+  innerX: CASE.lugWidth / 2,
+  /**
+   * Where the lug leaves the case.
+   *
+   * This has to be SHALLOW. The case circle narrows fast: at |z|=11.5 it only
+   * reaches x=13.3, so a root there gives a 3mm sliver with nothing to blend into —
+   * thin sticks poking out of a circle. At |z|=8 the circle still reaches x=15.7,
+   * which is a 5.7mm shoulder that merges into the case exactly as the reference
+   * does.
+   *
+   * The inner corner does then fall inside the 15mm movement bore, but the lug's top
+   * face is held below the dial, so it cannot surface the way it did before; and in
+   * the exploded view the case and movement travel apart anyway.
+   */
+  rootZ: 8.0,
+  /** Lug-to-lug ends up ~42mm on a 36mm case, matching the reference 1.17 ratio. */
+  tipZ: 21.0,
+  /** Outer face: flush with the case circle at the root, tapering hard to the tip. */
+  outerAtRoot: 15.6,
+  outerAtTip: 13.0,
+  topAtRoot: 0.3,
+  topAtTip: -1.6,
+  bottomAtRoot: -5.4,
+  bottomAtTip: -4.2,
+  /** Fraction of the length over which the tip rounds off into a blunt nose. */
+  noseFraction: 0.09,
+  /** Superellipse exponent. Higher = squarer section, lower = rounder. */
+  sectionExponent: 3.4,
+} as const
+
+interface LugSection {
+  z: number
+  cx: number
+  cy: number
+  hx: number
+  hy: number
+}
+
+function lugSection(v: number): LugSection {
+  const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+  // Ease the taper so the lug stays full-bodied leaving the case and narrows
+  // noticeably only over the outer half — matching how the shoulder reads.
+  const taper = Math.pow(v, 1.15)
+  const xOut = lerp(LUG.outerAtRoot, LUG.outerAtTip, taper)
+  const yTop = lerp(LUG.topAtRoot, LUG.topAtTip, Math.pow(v, 1.5))
+  const yBot = lerp(LUG.bottomAtRoot, LUG.bottomAtTip, Math.pow(v, 1.7))
+
+  // Blunt rounded nose: a quarter-circle collapse over the last stretch, so the
+  // loft closes on itself instead of needing a separate end cap.
+  let shrink = 1
+  if (v > 1 - LUG.noseFraction) {
+    const t = (v - (1 - LUG.noseFraction)) / LUG.noseFraction
+    shrink = Math.sqrt(Math.max(0, 1 - t * t))
+  }
+
+  return {
+    z: -lerp(LUG.rootZ, LUG.tipZ, v),
+    cx: (LUG.innerX + xOut) / 2,
+    cy: (yTop + yBot) / 2,
+    hx: ((xOut - LUG.innerX) / 2) * shrink,
+    hy: ((yTop - yBot) / 2) * shrink,
+  }
+}
 
 function buildLug(): THREE.BufferGeometry {
-  const shape = new THREE.Shape()
-  // A Datejust lug is a SLENDER TAPERING HORN, not a slab.
-  //
-  // It emerges from the flank around mid-height — well below the bezel line — and
-  // loses roughly half its section on the way to the tip. Running it the full height
-  // of the case (which an earlier pass did) makes the watch read as a chunky diver
-  // rather than a dress watch, and it visually thickens the whole case.
-  //
-  // The root edge is CURVED, and its depth is bounded at BOTH ends.
-  //
-  // Too shallow and the outer corner hangs off the bulged flank as a seam. Too deep
-  // and the opposite failure appears: at the lug's INNER face (x=10) a root at
-  // z=9.2 sits only 13.6mm from centre — inside the 15mm case bore — so the root
-  // surfaced through the movement cavity as a pale block above the dial plane.
-  //
-  // Rooting at 11.4 up top keeps the inner corner at 15.2mm, just clear of the bore,
-  // while the curve lets the root ride inward lower down where the flank has pulled
-  // in. The top is also held under the dial so any residual intrusion is covered.
-  shape.moveTo(-11.4, 0.2)
-  shape.quadraticCurveTo(-15.6, -0.15, -19.3, -1.35)  // top face sweeping down and out
-  shape.quadraticCurveTo(-21.0, -2.1, -21.4, -3.05)   // rounded outer tip
-  shape.quadraticCurveTo(-21.6, -3.9, -20.2, -4.3)
-  shape.quadraticCurveTo(-15.8, -5.0, -12.4, -5.3)    // underside tucking back in
-  shape.lineTo(-10.0, -5.4)
-  shape.quadraticCurveTo(-10.6, -2.4, -11.4, 0.2)     // curved root, following the flank
-  shape.closePath()
+  const n = LUG.sectionExponent
+  const superell = (t: number, half: number) => {
+    const c = Math.cos(t)
+    return Math.sign(c) * Math.pow(Math.abs(c), 2 / n) * half
+  }
 
-  const g = new THREE.ExtrudeGeometry(shape, {
-    depth: LUG_THICKNESS,
-    bevelEnabled: true,
-    // A heavy bevel is what rounds the outer face. A hard-edged extrusion reads as a
-    // stamped plate bolted to the case instead of a machined continuation of it.
-    bevelThickness: 0.44,
-    bevelSize: 0.46,
-    bevelOffset: 0,
-    bevelSegments: 8,
-    curveSegments: 32,
+  const g = parametricSurface(48, 64, (u, v, target) => {
+    const s = lugSection(v)
+    const t = u * Math.PI * 2
+    const sn = Math.sin(t)
+    target.set(
+      s.cx + superell(t, s.hx),
+      s.cy + Math.sign(sn) * Math.pow(Math.abs(sn), 2 / n) * s.hy,
+      s.z,
+    )
   })
-  // Shape is in XY; rotate so its X becomes world Z and extrude runs along world X.
-  g.rotateY(Math.PI / 2)
-  return g
+  return toCreasedNormals(g, Math.PI / 4)
 }
 
 /**
@@ -127,10 +178,7 @@ export function buildMiddleCase(): THREE.BufferGeometry {
     for (const sx of [-1, 1]) {
       for (const sz of [-1, 1]) {
         const lug = buildLug()
-        lug.scale(1, 1, sz)
-        // Inner faces must sit exactly `lugWidth` apart so a 20mm bracelet fits
-        // between them — the lug body is OUTSIDE that gap, not inside it.
-        lug.translate(sx * (CASE.lugWidth / 2 + LUG_THICKNESS / 2), 0, 0)
+        lug.scale(sx, 1, sz)
         lugs.push(lug)
       }
     }

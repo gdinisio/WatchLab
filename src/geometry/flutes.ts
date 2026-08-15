@@ -87,10 +87,10 @@ export function buildFlutedBezel(opts: FlutedBezelOptions): THREE.BufferGeometry
     height,
     fluteCount,
     fluteDepth,
-    sharpness = 0.85,
-    triangleness = 0.72,
-    segmentsPerFlute = 14,
-    creaseAngle = Math.PI / 9,
+    sharpness = 1.0,
+    triangleness = 0.94,
+    segmentsPerFlute = 18,
+    creaseAngle = Math.PI / 12,
   } = opts
 
   /**
@@ -107,19 +107,21 @@ export function buildFlutedBezel(opts: FlutedBezelOptions): THREE.BufferGeometry
   const ribs: Rib[] = [
     { r: at(0), y: height - 0.55, w: 0 },
     { r: at(0.02), y: height - 0.2, w: 0 },
-    { r: at(0.1), y: height, w: 0 },              // polished top rim
-    { r: at(0.26), y: height - 0.06, w: 0.4 },
-    { r: at(0.46), y: height - 0.3, w: 1 },       // fluted face
-    { r: at(0.72), y: height - 0.86, w: 1 },
-    { r: at(0.9), y: height - 1.34, w: 0.8 },
-    { r: at(0.98), y: height - 1.62, w: 0.25 },
-    { r: at(1), y: height - 1.78, w: 0 },         // outer edge
+    { r: at(0.11), y: height, w: 0 },             // polished inner rim, unfluted
+    { r: at(0.15), y: height - 0.02, w: 0 },
+    { r: at(0.19), y: height - 0.05, w: 1 },      // flutes start at FULL depth
+    { r: at(0.42), y: height - 0.3, w: 1 },
+    { r: at(0.68), y: height - 0.78, w: 1 },
+    { r: at(0.84), y: height - 1.16, w: 1 },      // ...and hold it right across
+    { r: at(0.88), y: height - 1.28, w: 0 },      // stop cleanly
+    { r: at(0.94), y: height - 1.46, w: 0 },      // polished outer band
+    { r: at(1), y: height - 1.74, w: 0 },         // outer edge
     { r: at(1), y: 0.12, w: 0 },
     { r: at(0.96), y: 0, w: 0 },
     { r: at(0), y: 0, w: 0 },                     // underside
   ]
 
-  const profile = densify(ribs, 5)
+  const profile = densify(ribs, 7)
   const uSegments = Math.max(64, fluteCount * segmentsPerFlute)
 
   const geometry = parametricSurface(uSegments, profile.length - 1, (u, v, target) => {
