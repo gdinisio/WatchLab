@@ -163,8 +163,9 @@ export const CASE_PARTS: PartDef[] = [
     group: 'case',
     geometry: buildCrown,
     material: 'steelPolished',
-    position: [CASE.middleRadius + CROWN.tubeLength - 0.6, -1.6, 0],
-    rotation: [0, 0, Math.PI / 2],
+    position: [CASE.middleRadius + CROWN.tubeLength - 1.2, -1.6, 0],
+    // -PI/2 puts the coronet face outward at 3 o'clock; +PI/2 buries it in the case.
+    rotation: [0, 0, -Math.PI / 2],
     explode: { axis: AXIS.crown, distance: 17, order: 5, spin: 2.5, spinAxis: AXIS.crown },
     spec: {
       material: '904L Oystersteel',

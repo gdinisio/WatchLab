@@ -52,8 +52,8 @@ function drawPrintMask(ctx: CanvasRenderingContext2D) {
   for (let i = 0; i < 60; i++) {
     const a = (i / 60) * Math.PI * 2
     const major = i % 5 === 0
-    const len = major ? 0.5 : 0.3
-    const w = major ? 0.14 : 0.075
+    const len = major ? 0.62 : 0.38
+    const w = major ? 0.16 : 0.085
     const sin = Math.sin(a)
     const cos = Math.cos(a)
     const x0 = sin * trackR
@@ -77,11 +77,21 @@ function drawPrintMask(ctx: CanvasRenderingContext2D) {
   tracked(ctx, DIAL.text.line2, 0, 3.55, 0.72, 0.1, '600')
 
   // ---- Lower certification block -----------------------------------------
-  tracked(ctx, DIAL.text.certLine1, 0, -4.3, 0.5, 0.08)
-  tracked(ctx, DIAL.text.certLine2, 0, -5.4, 0.5, 0.08)
+  // Deliberately small and light. On the real dial this is near-microprint; sized up
+  // it shouts, and the dial stops looking like a Rolex.
+  tracked(ctx, DIAL.text.certLine1, 0, -4.35, 0.42, 0.07, '400')
+  tracked(ctx, DIAL.text.certLine2, 0, -5.32, 0.42, 0.07, '400')
 
-  // ---- SWISS MADE, hard against the rim below the 6 marker ---------------
-  tracked(ctx, DIAL.text.swiss, 0, -13.05, 0.42, 0.12, '600')
+  // ---- SWISS MADE at the rim, split by a coronet -------------------------
+  // The tiny coronet BETWEEN the two words is the detail everyone forgets.
+  const swissY = -13.1
+  const swissSize = 0.4
+  const crownW = 0.62
+  ctx.font = `600 ${toPx(swissSize)}px ${FONT}`
+  const half = ctx.measureText('SWISS ').width / 2 / toPx(1)
+  tracked(ctx, 'SWISS', -(crownW / 2 + half * 0.62), swissY, swissSize, 0.12, '600')
+  tracked(ctx, 'MADE', crownW / 2 + half * 0.62, swissY, swissSize, 0.12, '600')
+  drawCoronet(ctx, cx(0), cy(swissY - 0.04), toPx(crownW), toPx(crownW * 0.8))
 }
 
 export interface DialMaps {

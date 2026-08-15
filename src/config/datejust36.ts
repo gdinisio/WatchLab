@@ -30,7 +30,7 @@ export const CASE = {
 export const BEZEL = {
   outerRadius: 18,
   innerRadius: 14.75,
-  height: 2.05,
+  height: 1.82,
   /**
    * Flute count for the 18k white gold fluted bezel.
    * TUNE VISUALLY against reference: flute pitch should read ~2.5mm at the outer edge.
@@ -38,9 +38,9 @@ export const BEZEL = {
    */
   fluteCount: 44,
   /** Peak-to-valley depth of each flute. */
-  fluteDepth: 0.36,
+  fluteDepth: 0.40,
   /** 0 = pure cosine, higher = sharper crests / broader polished valleys. */
-  fluteSharpness: 0.6,
+  fluteSharpness: 0.85,
 } as const
 
 export const CRYSTAL = {
@@ -66,7 +66,7 @@ export const CASEBACK = {
   outerRadius: 14.8,
   /** Radius of the fluted gripping rim the Rolex tool engages. */
   rimRadius: 14.8,
-  rimNotches: 60,
+  rimNotches: 96,
   thickness: 1.15,
   domeRise: 0.32,
 } as const
@@ -88,17 +88,20 @@ export const DIAL = {
   radius: 14.25,
   thickness: 0.42,
   /** Deep blue sunburst. */
-  colour: '#143a70',
+  colour: '#1b4d99',
   /** Minute track sits just inside the rehaut. */
   minuteTrackRadius: 13.35,
   indices: {
     /** Applied white gold baton indices. 3 o'clock is replaced by the date aperture. */
     hours: [12, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11],
-    length: 2.6,
-    width: 0.85,
-    height: 0.5,
+    /** Reference batons are long and chunky — roughly a quarter of the dial radius. */
+    length: 3.25,
+    width: 1.02,
+    height: 0.46,
+    /** Wall thickness of the polished white gold frame around the luminous fill. */
+    frameWall: 0.19,
     /** Radial position of the OUTER end of each baton. */
-    outerRadius: 12.55,
+    outerRadius: 12.45,
   },
   date: {
     /** Aperture centre, 3 o'clock. */
@@ -123,9 +126,11 @@ export const DIAL = {
 } as const
 
 export const HANDS = {
-  hour:    { length: 8.2,  width: 1.05, thickness: 0.32, lumeInset: 0.22 },
-  minute:  { length: 12.1, width: 0.9,  thickness: 0.3,  lumeInset: 0.2 },
-  seconds: { length: 13.4, width: 0.26, thickness: 0.18, tailLength: 3.6 },
+  // Reference batons are slimmer than they look at a glance, and the hour hand is
+  // markedly shorter — it should stop well inside the applied markers.
+  hour:    { length: 7.7,  width: 0.9,  thickness: 0.3,  lumeInset: 0.2 },
+  minute:  { length: 12.0, width: 0.8,  thickness: 0.28, lumeInset: 0.18 },
+  seconds: { length: 13.3, width: 0.22, thickness: 0.16, tailLength: 3.5 },
   /** Stacked heights above the dial surface. */
   stack: { hour: 0.55, minute: 1.0, seconds: 1.45 },
 } as const
@@ -161,8 +166,8 @@ export const BRACELET = {
   /** Oyster three-piece link bracelet, tapering 20mm -> 16mm. */
   widthAtLug: 20,
   widthAtClasp: 16,
-  linkLength: 5.35,
-  linkThickness: 2.35,
+  linkLength: 5.1,
+  linkThickness: 1.85,
   /** Links per side, excluding the end link. */
   linksPerSide: 9,
   /** Gentle drape arc so the bracelet falls naturally away from the case. */

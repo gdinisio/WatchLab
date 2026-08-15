@@ -35,20 +35,41 @@ export function buildDial(): THREE.BufferGeometry {
 }
 
 /** Applied baton index: a chamfered white-gold trough. */
+/**
+ * Applied baton index, built as an open FRAME rather than a solid block.
+ *
+ * A Rolex applied marker is a white gold surround with a luminous compound poured
+ * into the channel, and the polished inner walls of that channel are what throw the
+ * hard bright line down each side of the baton. Modelling the marker solid and
+ * laying lume on top loses those walls, and the index flattens into a painted
+ * rectangle — the single clearest tell on a dial.
+ */
 export function buildIndex(double = false): THREE.BufferGeometry {
   return cached(`dial/index-${double}`, () => {
-    const { length, width, height } = DIAL.indices
+    const { length, width, height, frameWall } = DIAL.indices
     const make = (offsetX: number) => {
-      const g = flatExtrude(roundedRect(width, length, width * 0.22), {
+      const outline = roundedRect(width, length, width * 0.16)
+      outline.holes.push(
+        new THREE.Path(
+          roundedRect(
+            width - frameWall * 2,
+            length - frameWall * 2,
+            (width - frameWall * 2) * 0.2,
+          ).getPoints(24),
+        ),
+      )
+      const g = flatExtrude(outline, {
         thickness: height,
-        bevel: 0.09,
+        bevel: 0.055,
         bevelSegments: 3,
+        curveSegments: 12,
       })
       g.translate(offsetX, 0, 0)
       return g
     }
     // The 12 o'clock marker on a Datejust is a doubled baton.
-    const parts = double ? [make(-width * 0.75), make(width * 0.75)] : [make(0)]
+    const gap = width * 1.22
+    const parts = double ? [make(-gap / 2), make(gap / 2)] : [make(0)]
     const merged = parts.length > 1 ? mergeAll(parts, 'index') : parts[0]
     return toCreasedNormals(merged, Math.PI / 5)
   })
@@ -57,17 +78,23 @@ export function buildIndex(double = false): THREE.BufferGeometry {
 /** The luminous fill sitting in the index trough, slightly domed and inset. */
 export function buildIndexLume(double = false): THREE.BufferGeometry {
   return cached(`dial/indexLume-${double}`, () => {
-    const { length, width, height } = DIAL.indices
-    const inset = 0.17
+    const { length, width, height, frameWall } = DIAL.indices
+    // Fills the frame channel and sits very slightly below its rim, so the polished
+    // walls stay visible around it.
+    const w = width - frameWall * 2
+    const l = length - frameWall * 2
     const make = (offsetX: number) => {
-      const g = flatExtrude(
-        roundedRect(width - inset * 2, length - inset * 2, (width - inset * 2) * 0.3),
-        { thickness: height * 0.55, bevel: 0.05, bevelSegments: 2 },
-      )
-      g.translate(offsetX, height * 0.28, 0)
+      const g = flatExtrude(roundedRect(w, l, w * 0.18), {
+        thickness: height * 0.78,
+        bevel: 0.035,
+        bevelSegments: 2,
+        curveSegments: 10,
+      })
+      g.translate(offsetX, -height * 0.09, 0)
       return g
     }
-    const parts = double ? [make(-width * 0.75), make(width * 0.75)] : [make(0)]
+    const gap = width * 1.22
+    const parts = double ? [make(-gap / 2), make(gap / 2)] : [make(0)]
     return parts.length > 1 ? mergeAll(parts, 'indexLume') : parts[0]
   })
 }

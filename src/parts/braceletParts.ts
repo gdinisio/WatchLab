@@ -56,14 +56,17 @@ const runParts: PartDef[] = SIDES.flatMap(({ key, side, axis, label }) => [
     name: `Link Centres · ${label}`,
     group,
     geometry: buildLinkCentre,
-    material: 'steelBrushed',
+    // POLISHED centre between SATIN flanks. This is the Datejust Oyster signature
+    // and it is the other way round from a Submariner — getting it backwards makes
+    // the bracelet read as the wrong watch entirely.
+    material: 'steelPolished',
     instances: runInstances(side),
     explode: { axis, distance: 30, order: 1 },
     spec: {
       material: '904L Oystersteel',
-      function: 'The broad satin centre section of each three-piece Oyster link.',
+      function: 'The broad polished centre section of each three-piece Oyster link.',
       count: BRACELET.linksPerSide,
-      finish: 'Satin-brushed along the bracelet',
+      finish: 'Mirror-polished',
     },
     ...(key === '6' ? { labelOffset: [0, -5, 10] as const } : {}),
   },
@@ -72,14 +75,14 @@ const runParts: PartDef[] = SIDES.flatMap(({ key, side, axis, label }) => [
     name: `Link Flanks · ${label}`,
     group,
     geometry: buildLinkFlanks,
-    material: 'steelPolished',
+    material: 'steelBrushed',
     instances: runInstances(side),
     explode: { axis, distance: 36, order: 1 },
     spec: {
       material: '904L Oystersteel',
-      function: 'The polished outer sections either side of the centre link — the contrast that defines an Oyster bracelet.',
+      function: 'The satin outer sections either side of the centre link — the contrast that defines an Oyster bracelet.',
       count: BRACELET.linksPerSide * 2,
-      finish: 'Mirror-polished',
+      finish: 'Satin-brushed along the bracelet',
     },
   },
   {

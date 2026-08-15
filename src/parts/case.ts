@@ -2,7 +2,9 @@ import * as THREE from 'three'
 import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { BEZEL, CASE, CASEBACK, CROWN, CRYSTAL } from '../config/datejust36'
 import { buildFlutedBezel, buildKnurledBand } from '../geometry/flutes'
+import { coronetShapes } from '../geometry/coronet'
 import { buildLathe } from '../geometry/lathe'
+import { flatExtrude } from '../geometry/shapes'
 import { cached, type P2, mergeAll } from '../geometry/utils'
 import { Y } from './layout'
 
@@ -16,29 +18,77 @@ const LUG_THICKNESS = 3.45
 
 function buildLug(): THREE.BufferGeometry {
   const shape = new THREE.Shape()
-  // Starts well inside the case body so the merge is seamless, then sweeps out and
-  // down to the spring-bar boss. A Datejust lug is a thick horn, not a thin arc.
-  shape.moveTo(-12.0, 2.5)
-  shape.quadraticCurveTo(-17.2, 2.2, -20.2, 0.6)
-  shape.quadraticCurveTo(-22.1, -0.5, -21.9, -2.2)
-  shape.quadraticCurveTo(-21.7, -3.7, -20.0, -4.0)
-  shape.quadraticCurveTo(-17.0, -4.4, -13.6, -5.0)
-  shape.lineTo(-12.0, -5.2)
-  shape.lineTo(-12.0, 2.5)
+  // A Datejust lug is a SLENDER TAPERING HORN, not a slab.
+  //
+  // It emerges from the flank around mid-height — well below the bezel line — and
+  // loses roughly half its section on the way to the tip. Running it the full height
+  // of the case (which an earlier pass did) makes the watch read as a chunky diver
+  // rather than a dress watch, and it visually thickens the whole case.
+  //
+  // The root must be buried at the lug's OUTERMOST x, not its centre. A lug spans
+  // x 10.0-13.45, and the bulged flank pulls in as it goes: at x=13.7 and y=-3 the
+  // case surface only reaches |z| ~9.6. Rooting at 11.5 therefore left the corner
+  // hanging outside the case as a visible seam. 9.2 stays buried over the full
+  // height range.
+  shape.moveTo(-9.2, 1.15)
+  shape.quadraticCurveTo(-16.0, 0.6, -19.5, -0.85)    // top face sweeping down and out
+  shape.quadraticCurveTo(-21.3, -1.7, -21.5, -2.9)    // rounded outer tip
+  shape.quadraticCurveTo(-21.6, -3.95, -20.3, -4.3)
+  shape.quadraticCurveTo(-16.0, -5.1, -12.0, -5.5)    // underside tucking back in
+  shape.lineTo(-9.2, -5.6)
+  shape.closePath()
 
   const g = new THREE.ExtrudeGeometry(shape, {
     depth: LUG_THICKNESS,
     bevelEnabled: true,
-    bevelThickness: 0.42,
-    bevelSize: 0.46,
+    // A heavy bevel is what rounds the outer face. A hard-edged extrusion reads as a
+    // stamped plate bolted to the case instead of a machined continuation of it.
+    bevelThickness: 0.6,
+    bevelSize: 0.62,
     bevelOffset: 0,
-    bevelSegments: 6,
-    curveSegments: 24,
+    bevelSegments: 8,
+    curveSegments: 32,
   })
   // Shape is in XY; rotate so its X becomes world Z and extrude runs along world X.
   g.rotateY(Math.PI / 2)
-  g.translate(0, 0, 0)
   return g
+}
+
+/**
+ * The Oyster flank is a CONTINUOUS CONVEX BULGE, not a cylinder.
+ *
+ * This is the single biggest thing that decides whether the silhouette reads as a
+ * Rolex. Seen from the side the case swells outward to its widest point a little
+ * ABOVE centre, then sweeps in a long, gentle curve down to the caseback — so the
+ * whole flank is one unbroken mirror-polished surface that pulls a single bright
+ * band of reflection around the watch. A straight vertical wall gives a flat,
+ * lifeless stripe instead and instantly reads as a generic case.
+ *
+ * The curve is a pair of parabolas sharing an apex at `apexY`: tight above, gentle
+ * below, which is the asymmetry visible in the reference profile.
+ */
+const FLANK = {
+  maxRadius: CASE.middleRadius,
+  apexY: 0.25,
+  /** Curvature above the apex — tight, so the case tucks quickly under the bezel. */
+  kAbove: 0.34,
+  /** Curvature below the apex — gentle, for the long sweep to the caseback. */
+  kBelow: 0.085,
+} as const
+
+function flankRadius(y: number): number {
+  const d = y - FLANK.apexY
+  const k = d > 0 ? FLANK.kAbove : FLANK.kBelow
+  return FLANK.maxRadius - k * d * d
+}
+
+function flankProfile(fromY: number, toY: number, steps: number): P2[] {
+  const out: P2[] = []
+  for (let i = 0; i <= steps; i++) {
+    const y = fromY + (toY - fromY) * (i / steps)
+    out.push([flankRadius(y), y])
+  }
+  return out
 }
 
 /**
@@ -52,22 +102,21 @@ export function buildMiddleCase(): THREE.BufferGeometry {
       [CASE.boreRadius, Y.caseMiddleTop],
       [BEZEL.innerRadius - 0.15, Y.caseMiddleTop],
       [CASE.bezelSeatRadius, Y.caseMiddleTop - 0.02],
-      [CASE.bezelSeatRadius, Y.bezelBottom - 0.35],
-      [CASE.middleRadius - 0.5, Y.bezelBottom - 0.62],
-      // Polished flank, very slightly barrelled.
-      [CASE.middleRadius, 0.9],
-      [CASE.middleRadius, -1.6],
-      // Underside curves monotonically inward to the caseback aperture. Stepping
+      [CASE.bezelSeatRadius, Y.bezelBottom - 0.4],
+      // Sampled convex flank, top of the bulge down to the caseback shoulder.
+      ...flankProfile(2.0, -4.9, 26),
+      // Underside tucks monotonically inward to the caseback aperture. Stepping
       // back outward here produced a self-intersecting lathe and a phantom flange.
-      [CASE.middleRadius - 0.45, -3.1],
-      [CASE.middleRadius - 1.15, -4.5],
-      [CASE.middleRadius - 1.75, Y.caseMiddleBottom],
+      [flankRadius(-5.2) - 0.35, -5.4],
+      [CASEBACK.outerRadius + 0.55, Y.caseMiddleBottom],
       [CASEBACK.outerRadius, Y.caseMiddleBottom],
       [CASEBACK.outerRadius, Y.casebackSeat],
       [CASE.boreRadius, Y.casebackInner + 0.2],
       [CASE.boreRadius, Y.caseMiddleTop],
     ]
-    const body = buildLathe(profile, { segments: 256, chamfer: 0.09 })
+    // A finer crease angle keeps the whole bulge smooth while the bezel seat and
+    // caseback shoulder stay crisp.
+    const body = buildLathe(profile, { segments: 256, chamfer: 0.07, creaseAngle: Math.PI / 7 })
 
     const lugs: THREE.BufferGeometry[] = []
     for (const sx of [-1, 1]) {
@@ -175,31 +224,56 @@ export function buildCaseback(): THREE.BufferGeometry {
   })
 }
 
-/** Twinlock winding crown: knurled grip band with a domed, coronet-stamped face. */
+/**
+ * Twinlock winding crown: knurled grip band with the coronet standing proud inside a
+ * shallow recessed dish on its face.
+ *
+ * The recess matters as much as the coronet itself — on the real crown the dish
+ * shades to near-black while the crown sits in it catching light, and that contrast
+ * is what makes the logo legible at 5mm across.
+ */
 export function buildCrown(): THREE.BufferGeometry {
   return cached('case/crown', () => {
     const { radius, length, fluteCount, fluteDepth } = CROWN
+    const face = length / 2
+    const dishFloor = face - 0.26
+
     const body = buildLathe(
       [
-        [0, -length / 2],
-        [radius - 0.5, -length / 2],
-        [radius, -length / 2 + 0.4],
-        [radius, length / 2 - 0.5],
-        [radius - 0.35, length / 2 - 0.1],
-        [radius - 1.5, length / 2],
-        [0, length / 2],
+        [0, -face],
+        [radius - 0.5, -face],
+        [radius, -face + 0.4],
+        [radius, face - 0.55],
+        [radius - 0.28, face - 0.16],
+        [radius - 0.5, face],          // narrow polished land around the dish
+        [radius - 0.62, face - 0.08],  // dish wall
+        [radius - 0.72, dishFloor],
+        [0, dishFloor],                // recessed floor the coronet sits on
       ],
-      { segments: 128, chamfer: 0.08 },
+      { segments: 128, chamfer: 0.05 },
     )
+
     const grip = buildKnurledBand({
       radius,
-      height: length - 1.0,
+      height: length - 1.05,
       notches: fluteCount,
       depth: fluteDepth,
-      yStart: -length / 2 + 0.45,
+      yStart: -face + 0.45,
       chamfer: 0.1,
     })
-    const merged = mergeAll([body, grip], 'case')
+
+    // Coronet, sitting in the dish and standing just shy of the surrounding land.
+    const coronet = flatExtrude(coronetShapes(radius * 1.28, radius * 1.0), {
+      thickness: 0.19,
+      bevel: 0.025,
+      bevelSegments: 2,
+      curveSegments: 12,
+    })
+    coronet.computeBoundingBox()
+    const b = coronet.boundingBox!
+    coronet.translate(0, dishFloor + 0.095, -(b.min.z + b.max.z) / 2)
+
+    const merged = mergeAll([body, grip, coronet], 'case')
     return toCreasedNormals(merged, Math.PI / 7)
   })
 }

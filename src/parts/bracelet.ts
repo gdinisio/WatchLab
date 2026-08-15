@@ -16,25 +16,46 @@ const NOMINAL_WIDTH = 20
  * throws it away, so the centre and the flanks are separate meshes with separate
  * materials.
  */
-function linkBlank(widthFraction: number, offsetFraction: number): THREE.BufferGeometry {
+function linkBlank(
+  widthFraction: number,
+  offsetFraction: number,
+  opts: { thickness?: number; lengthFactor?: number } = {},
+): THREE.BufferGeometry {
+  const { thickness = BRACELET.linkThickness, lengthFactor = 0.985 } = opts
   const w = NOMINAL_WIDTH * widthFraction
-  const g = flatExtrude(roundedRect(w, BRACELET.linkLength * 0.94, 0.35), {
-    thickness: BRACELET.linkThickness,
-    bevel: 0.16,
-    bevelSegments: 3,
-    curveSegments: 12,
+  // Corner radius is small and the length factor near 1: real Oyster links butt up
+  // against each other with a seam you can barely get a fingernail into. Leaving a
+  // visible gap between every link is what made an earlier pass read as a toy chain.
+  const g = flatExtrude(roundedRect(w, BRACELET.linkLength * lengthFactor, 0.22), {
+    thickness,
+    bevel: 0.13,
+    bevelSegments: 4,
+    curveSegments: 10,
   })
   g.translate(NOMINAL_WIDTH * offsetFraction, 0, 0)
   return g
 }
 
+/**
+ * The polished centre link sits marginally PROUD of the satin flanks. That tiny step
+ * is why the centre stripe catches its own separate highlight down the length of the
+ * bracelet instead of dissolving into the flanks.
+ */
 export function buildLinkCentre(): THREE.BufferGeometry {
-  return cached('brc/linkCentre', () => toCreasedNormals(linkBlank(0.46, 0), Math.PI / 5))
+  return cached('brc/linkCentre', () =>
+    toCreasedNormals(
+      linkBlank(0.48, 0, { thickness: BRACELET.linkThickness + 0.12 }),
+      Math.PI / 5,
+    ),
+  )
 }
 
 export function buildLinkFlanks(): THREE.BufferGeometry {
   return cached('brc/linkFlanks', () => {
-    const merged = mergeAll([linkBlank(0.25, -0.357), linkBlank(0.25, 0.357)], 'bracelet')
+    const merged = mergeAll(
+      [linkBlank(0.255, -0.372), linkBlank(0.255, 0.372)],
+      'bracelet',
+    )
     return toCreasedNormals(merged, Math.PI / 5)
   })
 }

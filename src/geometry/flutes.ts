@@ -10,6 +10,22 @@ interface Rib {
   w: number
 }
 
+/**
+ * The flute cross-section, returned in [-1, 1].
+ *
+ * A cosine blended toward a triangle wave: the triangle supplies the sharp V and the
+ * narrow ridge of a genuinely machined flute, while the residual cosine keeps the
+ * very tip of each ridge from being a shading-breaking knife edge.
+ */
+function fluteWave(phase: number, sharpness: number, triangleness: number): number {
+  const cos = Math.cos(phase)
+  const t = (phase / (Math.PI * 2)) % 1
+  const tri = 1 - 4 * Math.abs((t < 0 ? t + 1 : t) - 0.5)
+  const blended = cos * (1 - triangleness) + tri * triangleness
+  // Sign-preserving power so crest and valley stay symmetric about the base radius.
+  return Math.sign(blended) * Math.pow(Math.abs(blended), sharpness)
+}
+
 function densify(ribs: Rib[], perSegment: number): Rib[] {
   const out: Rib[] = []
   for (let i = 0; i < ribs.length - 1; i++) {
@@ -35,10 +51,19 @@ export interface FlutedBezelOptions {
   fluteCount: number
   fluteDepth: number
   /**
-   * Crest shaping. <1 broadens the crests and narrows the valleys, which is how a
-   * real fluted bezel is cut; 1 is a plain cosine.
+   * Crest shaping. <1 broadens the crests and narrows the valleys; 1 is a plain
+   * cosine. Applied after the triangle blend below.
    */
   sharpness?: number
+  /**
+   * Blend from cosine (0) toward a triangle wave (1).
+   *
+   * A real fluted bezel is CUT, not moulded: each flute is a V-groove with a narrow
+   * ridge between it and the next, so the cross-section is close to triangular. A
+   * pure cosine gives soft rounded humps that read as knurling rather than flutes,
+   * and loses the crisp alternating light/dark facets that make the bezel sparkle.
+   */
+  triangleness?: number
   segmentsPerFlute?: number
   creaseAngle?: number
 }
@@ -62,9 +87,10 @@ export function buildFlutedBezel(opts: FlutedBezelOptions): THREE.BufferGeometry
     height,
     fluteCount,
     fluteDepth,
-    sharpness = 0.7,
-    segmentsPerFlute = 10,
-    creaseAngle = Math.PI / 7,
+    sharpness = 0.85,
+    triangleness = 0.72,
+    segmentsPerFlute = 14,
+    creaseAngle = Math.PI / 9,
   } = opts
 
   // Profile runs from the inner top aperture, out and down the fluted face, around
@@ -91,9 +117,7 @@ export function buildFlutedBezel(opts: FlutedBezelOptions): THREE.BufferGeometry
     const i = Math.min(profile.length - 1, Math.round(v * (profile.length - 1)))
     const { r, y, w } = profile[i]
     const theta = u * Math.PI * 2
-    const c = Math.cos(theta * fluteCount)
-    // Biased toward the crest: broad polished ridges separated by narrow V cuts.
-    const shaped = Math.pow((c + 1) / 2, sharpness) * 2 - 1
+    const shaped = fluteWave(theta * fluteCount, sharpness, triangleness)
     const rr = r + shaped * fluteDepth * 0.5 * w
     target.set(Math.sin(theta) * rr, y, Math.cos(theta) * rr)
   })
@@ -114,10 +138,11 @@ export function buildKnurledBand(opts: {
   yStart?: number
   chamfer?: number
   sharpness?: number
+  triangleness?: number
 }): THREE.BufferGeometry {
   const {
     radius, height, notches, depth,
-    yStart = 0, chamfer = 0.12, sharpness = 1.1,
+    yStart = 0, chamfer = 0.12, sharpness = 0.95, triangleness = 0.85,
   } = opts
 
   const ribs: Rib[] = [
@@ -135,8 +160,8 @@ export function buildKnurledBand(opts: {
       const i = Math.min(profile.length - 1, Math.round(v * (profile.length - 1)))
       const { r, y, w } = profile[i]
       const theta = u * Math.PI * 2
-      const c = Math.cos(theta * notches)
-      const shaped = Math.sign(c) * Math.pow(Math.abs(c), sharpness)
+      const shaped = fluteWave(theta * notches, sharpness, triangleness)
+      // Offset so the teeth are cut INTO the nominal radius rather than proud of it.
       const rr = r + shaped * depth * 0.5 * w - depth * 0.5 * w
       target.set(Math.sin(theta) * rr, y, Math.cos(theta) * rr)
     },

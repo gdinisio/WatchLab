@@ -14,6 +14,7 @@ import { useViewer } from './state/store'
  *   ?glass=simple     cheaper physical transmission instead of the multi-sample pass
  *   ?cam=x,y,z        camera placement
  *   ?explode=0..1     initial assembly state
+ *   ?hud=off          hide the overlay UI (for clean reference renders)
  *   ?movement=0..1    initial calibre state
  *   ?fx=off / ?dpr=n  handled inside Viewer
  */
@@ -32,6 +33,7 @@ function query() {
       : undefined,
     explode: num('explode'),
     movement: num('movement'),
+    hud: q.get('hud') !== 'off',
   }
 }
 
@@ -48,7 +50,7 @@ function Loader({ label }: { label: string }) {
 export function App() {
   const lib = useMaterials()
   const controls = useRef<CameraControls | null>(null)
-  const { view, simpleGlass, cam, explode, movement } = query()
+  const { view, simpleGlass, cam, explode, movement, hud } = query()
   const setExplodeT = useViewer((s) => s.setExplodeT)
   const setMovementT = useViewer((s) => s.setMovementT)
 
@@ -71,12 +73,14 @@ export function App() {
         {materials ? <MaterialBoard lib={lib} /> : <Watch lib={lib} simpleGlass={simpleGlass} />}
       </Viewer>
 
-      <div className="brand">
-        WatchLab
-        <small>{materials ? 'Material checkpoint' : 'Datejust 36 · ref. 126234'}</small>
-      </div>
+      {hud && (
+        <div className="brand">
+          WatchLab
+          <small>{materials ? 'Material checkpoint' : 'Datejust 36 · ref. 126234'}</small>
+        </div>
+      )}
 
-      {!materials && (
+      {!materials && hud && (
         <>
           <Controls />
           <Inspector />
