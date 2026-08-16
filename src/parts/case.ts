@@ -77,7 +77,7 @@ const LUG = {
    * was the inner face driving in to 10mm while the top was still above the dial,
    * which surfaced the lug straight through it.
    */
-  topAtRoot: 2.0,
+  topAtRoot: 2.45,
   bottomAtRoot: -5.3,
   /**
    * The tip is set by the BRACELET, not by the case.
@@ -374,9 +374,22 @@ function buildLug(): THREE.BufferGeometry {
  */
 const FLANK = {
   maxRadius: FLANK_MAX,
-  apexY: 0.25,
-  /** Curvature above the apex — tight, so the case tucks quickly under the bezel. */
-  kAbove: 0.34,
+  /**
+   * The flank is widest just UNDER the bezel, not at mid-height.
+   *
+   * Which is where an Oyster carries its mass — the case swells right beneath the
+   * bezel and sweeps down and in from there to the caseback.
+   */
+  apexY: 1.2,
+  /**
+   * Curvature above the apex — gentle now, so the case reaches the bezel.
+   *
+   * At 0.34 the flank had drawn in to 16.1mm by the time it got to the bezel's
+   * underside, against a bezel 18mm across: the bezel overhung the case by nearly
+   * 2mm and from below you looked straight into the undercut. The real bezel is
+   * proud of the case by a few tenths and no more.
+   */
+  kAbove: 0.10,
   /**
    * Curvature below the apex — very gentle.
    *
@@ -414,9 +427,13 @@ export function buildMiddleCase(): THREE.BufferGeometry {
       [CASE.boreRadius, Y.caseMiddleTop],
       [BEZEL.innerRadius - 0.15, Y.caseMiddleTop],
       [CASE.bezelSeatRadius, Y.caseMiddleTop - 0.02],
-      [CASE.bezelSeatRadius, Y.bezelBottom - 0.4],
-      // Sampled convex flank, top of the bulge down to the caseback shoulder.
-      ...flankProfile(2.0, -5.25, 26),
+      // The seat wall runs down to the bezel's UNDERSIDE, not to 0.4mm short of it.
+      // It used to stop at 2.1 while the bezel sat at 2.5, so the bezel rested on
+      // nothing and hung over a gap.
+      [CASE.bezelSeatRadius, Y.bezelBottom],
+      // Sampled convex flank, starting flush against the bezel and sweeping down to
+      // the caseback shoulder.
+      ...flankProfile(Y.bezelBottom, -5.25, 26),
       // Underside tucks monotonically inward to the caseback aperture. Stepping
       // back outward here produced a self-intersecting lathe and a phantom flange.
       [flankRadius(-5.55) - 0.35, -5.75],

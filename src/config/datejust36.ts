@@ -99,12 +99,14 @@ export const CROWN = {
   /**
    * Vertical grip flutes around the crown.
    *
-   * A Twinlock crown is finely and DEEPLY fluted — the teeth are what you actually
-   * grip through a glove. At 24 x 0.16mm they read as a faint ripple; the reference
-   * shows roughly thirty distinct teeth cut deep enough to throw their own shadow.
+   * FEWER and DEEPER than the last pass. Counting the reference head-on gives about
+   * a dozen teeth across the visible half, so somewhere near two dozen in total —
+   * chunky things you could grip through a glove, not the fine ripple thirty shallow
+   * ones produce. At 24 x 0.40mm the facets sit near 49 degrees off the tangent and
+   * each throws its own shadow.
    */
-  fluteCount: 31,
-  fluteDepth: 0.26,
+  fluteCount: 24,
+  fluteDepth: 0.4,
   tubeRadius: 1.5,
   tubeLength: 3.2,
   /** Crown sits at 3 o'clock on the +X axis. */

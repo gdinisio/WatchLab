@@ -3,7 +3,8 @@ import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.j
 import { BRACELET, CASE } from '../config/datejust36'
 import { coronetShapes } from '../geometry/logoSvg'
 import { archAcrossX, flatExtrude, roundedRect, sectionExtrude, taperAlongZ } from '../geometry/shapes'
-import { cached, mergeAll, subdivide } from '../geometry/utils'
+import { cached, mergeAll, subdivide, type P2 } from '../geometry/utils'
+import { buildLathe } from '../geometry/lathe'
 import { Y } from './layout'
 
 /** Links are modelled at this nominal width and scaled per instance as the taper runs. */
@@ -321,27 +322,48 @@ export function buildLinkPin(): THREE.BufferGeometry {
     const shaftRadius = 0.42
     const headRadius = 0.58
     const headThickness = 0.4
+    const threadLength = 2.3
+    const threadDepth = 0.12
+    const threadPitch = 0.28
 
     const shaft = new THREE.CylinderGeometry(shaftRadius, shaftRadius, length, 20)
     shaft.rotateZ(Math.PI / 2)
 
+    // Slotted head, one end only. The slot is what makes the rotation visible; a
+    // plain cylinder is symmetric about its own axis and unscrewing it shows nothing.
     const face = new THREE.Shape()
     face.absarc(0, 0, headRadius, 0, Math.PI * 2, false)
     face.holes.push(roundedRect(0.17, shaftRadius * 1.85, 0.05))
-
-    const heads = [-1, 1].map((sx) => {
-      const head = sectionExtrude(face, {
-        depth: headThickness,
-        bevel: 0.05,
-        bevelSegments: 2,
-        curveSegments: 24,
-      })
-      head.rotateY(Math.PI / 2)
-      head.translate(sx * (length / 2 + headThickness / 2), 0, 0)
-      return head
+    const head = sectionExtrude(face, {
+      depth: headThickness,
+      bevel: 0.05,
+      bevelSegments: 2,
+      curveSegments: 24,
     })
+    head.rotateY(Math.PI / 2)
+    head.translate(-(length / 2 + headThickness / 2), 0, 0)
 
-    const g = mergeAll([shaft, ...heads], 'linkPin')
+    /**
+     * The thread, at the far end.
+     *
+     * Stacked rings rather than a true helix. At a 0.28mm pitch on a 0.84mm shaft the
+     * difference is well under a pixel at any sane viewing size, and a lathe of a
+     * sawtooth profile costs a fraction of a swept helical solid.
+     */
+    const turns = Math.floor(threadLength / threadPitch)
+    const profile: P2[] = [[0, 0]]
+    for (let i = 0; i < turns; i++) {
+      const base = i * threadPitch
+      profile.push([shaftRadius, base])
+      profile.push([shaftRadius + threadDepth, base + threadPitch * 0.45])
+      profile.push([shaftRadius, base + threadPitch * 0.9])
+    }
+    profile.push([0, turns * threadPitch])
+    const thread = buildLathe(profile, { segments: 20, creaseAngle: Math.PI / 5 })
+    thread.rotateZ(-Math.PI / 2)
+    thread.translate(length / 2 - threadLength, 0, 0)
+
+    const g = mergeAll([shaft, head, thread], 'linkPin')
     // The pin lives at the JOINT, not in the middle of the link it is instanced with.
     g.translate(0, 0, -BRACELET.linkLength / 2)
     return toCreasedNormals(g, Math.PI / 5)
