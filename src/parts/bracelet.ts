@@ -236,13 +236,48 @@ export function buildClaspCoronet(): THREE.BufferGeometry {
   })
 }
 
+/**
+ * A screwed link pin: a shaft with a slotted head at each end.
+ *
+ * The SLOT is not decoration. A plain cylinder is rotationally symmetric about its
+ * own axis, so unscrewing it as it leaves the assembly is completely invisible — the
+ * part just slides. The slot gives the rotation something to read against. It is cut
+ * as a hole through a short head disc rather than a blind recess; the shaft directly
+ * behind it stops you seeing daylight through the gap.
+ *
+ * Length is bounded by the bracelet's ARCH: the pin is straight and the link it sits
+ * in curves away, so a pin spanning the full 20mm would surface through the flanks.
+ */
 export function buildLinkPin(): THREE.BufferGeometry {
   return cached('brc/linkPin', () => {
-    const g = new THREE.CylinderGeometry(0.34, 0.34, NOMINAL_WIDTH * 0.78, 16)
-    g.rotateZ(Math.PI / 2)
+    const length = NOMINAL_WIDTH * 0.72
+    const shaftRadius = 0.42
+    const headRadius = 0.58
+    const headThickness = 0.4
+
+    const shaft = new THREE.CylinderGeometry(shaftRadius, shaftRadius, length, 20)
+    shaft.rotateZ(Math.PI / 2)
+
+    const face = new THREE.Shape()
+    face.absarc(0, 0, headRadius, 0, Math.PI * 2, false)
+    face.holes.push(roundedRect(0.17, shaftRadius * 1.85, 0.05))
+
+    const heads = [-1, 1].map((sx) => {
+      const head = sectionExtrude(face, {
+        depth: headThickness,
+        bevel: 0.05,
+        bevelSegments: 2,
+        curveSegments: 24,
+      })
+      head.rotateY(Math.PI / 2)
+      head.translate(sx * (length / 2 + headThickness / 2), 0, 0)
+      return head
+    })
+
+    const g = mergeAll([shaft, ...heads], 'linkPin')
     // The pin lives at the JOINT, not in the middle of the link it is instanced with.
     g.translate(0, 0, -BRACELET.linkLength / 2)
-    return g
+    return toCreasedNormals(g, Math.PI / 5)
   })
 }
 

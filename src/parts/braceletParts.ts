@@ -24,6 +24,17 @@ const runInstances = (side: 1 | -1) => {
   return { count: placements.length, transform: (i: number) => placements[i].matrix }
 }
 
+/**
+ * Pins leave along their OWN axis, sideways out of the bracelet — not along the run.
+ *
+ * Sending them down the run meant they travelled THROUGH every link ahead of them on
+ * the way out, which is exactly what a pin does not do. Pulling them out sideways is
+ * how the bracelet is actually taken apart, and it leaves a rank of rods parked clear
+ * of the links so you can see what was holding them together. The two runs go to
+ * opposite sides so their ranks do not stack on top of each other.
+ */
+const pinAxis = (side: 1 | -1) => [side, 0, 0] as const
+
 const endLinkInstance = (side: 1 | -1) => ({
   count: 1,
   transform: () =>
@@ -109,11 +120,20 @@ const runParts: PartDef[] = SIDES.flatMap(({ key, side, axis, label }) => [
     geometry: buildLinkPin,
     material: 'steelPolished',
     instances: runInstances(side),
-    explode: { axis, distance: 42, order: 0 },
+    explode: {
+      axis: pinAxis(side),
+      distance: 30,
+      order: 0,
+      // Unscrewing on the way out. Visible only because the head is slotted.
+      spin: 2.5,
+      spinAxis: pinAxis(side),
+    },
     spec: {
       material: 'Stainless steel',
-      function: 'Screwed pins articulating each link against the next.',
+      function: 'Screwed pins articulating each link against the next, concealed inside the link flanks.',
       count: BRACELET.linksPerSide,
+      dimension: 'Ø0.84 × 14.4 mm',
+      finish: 'Polished, slotted heads',
     },
   },
 ])

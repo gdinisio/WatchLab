@@ -5,7 +5,7 @@ import { buildFlutedBezel, buildKnurledBand } from '../geometry/flutes'
 import { coronetShapes } from '../geometry/logoSvg'
 import { buildLathe } from '../geometry/lathe'
 import { flatExtrude } from '../geometry/shapes'
-import { cached, parametricSurface, type P2, mergeAll } from '../geometry/utils'
+import { cached, flipWinding, parametricSurface, type P2, mergeAll } from '../geometry/utils'
 import { Y } from './layout'
 
 /**
@@ -20,9 +20,14 @@ import { Y } from './layout'
  *  - its outer face is CURVED, continuing the round flank of the case so the two
  *    read as one machined mass rather than a case with fins attached.
  *
- * So the lug is lofted instead: a rounded cross-section swept along its length, with
- * the box it fills shrinking and dropping as it goes. The section is a superellipse,
- * which gives softly rounded corners without needing explicit fillets.
+ * So the lug is lofted instead: a rounded-box cross-section swept along its length,
+ * with the box it fills shrinking and dropping as it goes.
+ *
+ * The root of that loft is cut to the CASE'S OWN SILHOUETTE and blended out of it
+ * over the first third, which is what makes the junction a shoulder. Starting the
+ * loft at full width instead left each lug standing off the case with a wedge of
+ * daylight behind it and an open end where the section began — four blades beside a
+ * cylinder, which is precisely what the case is not.
  */
 /** Widest radius of the case flank; the lug's shoulder is cut to follow it. */
 const FLANK_MAX = CASE.middleRadius
@@ -59,79 +64,171 @@ const LUG = {
    * plus lugs read as a cushion, not a circle with tabs stuck on, so the shoulder
    * is meant to stand a little proud of the bezel.
    */
+  widthAtRoot: 8.6,
+  widthAtTip: 2.7,
   /**
-   * 5.8 was still too narrow: the shoulder emerged at radius 18.5 against an 18mm
-   * bezel, so the bezel hid all but a sliver and the visible lug was only its thin
-   * outer end. At 7.5 the shoulder sits about 19.2mm out — properly proud of the
-   * bezel, which is what makes the lug read as a broad talon in plan view.
+   * ABOVE 1, so the width holds up.
+   *
+   * This was 0.7, which front-loads the taper — and since the first third of the lug
+   * is buried in the case, all of the width was spent where nobody can see it: by
+   * the time the lug cleared the bezel it was down to 4.7mm and read as a spike. An
+   * exponent above 1 does the opposite, holding the shoulder broad out past the
+   * bezel and doing the narrowing over the visible run to the tip.
    */
-  widthAtRoot: 7.5,
-  widthAtTip: 2.1,
-  /** <1 keeps the shoulder full-bodied and pushes the narrowing outward. */
-  taperExponent: 0.7,
+  taperExponent: 1.3,
   topAtRoot: 0.3,
-  topAtTip: -1.6,
   bottomAtRoot: -5.4,
-  bottomAtTip: -4.2,
+  /**
+   * The tip is set by the BRACELET, not by the case.
+   *
+   * A link's arched outer edge spans 2.53mm, centred on -3.15. The lug tip is sized
+   * to straddle that with a couple of tenths proud top and bottom, so the lug closes
+   * around the end link instead of running alongside it.
+   */
+  topAtTip: -1.72,
+  bottomAtTip: -4.58,
   /** Fraction of the length over which the tip rounds off into a blunt nose. */
-  noseFraction: 0.09,
-  /** Superellipse exponent. Higher = squarer section, lower = rounder. */
-  sectionExponent: 3.4,
+  noseFraction: 0.13,
+  /** Radius broken onto every edge of the section. */
+  cornerRadius: 0.85,
+  /** How far the top face crowns across the lug's width. */
+  crown: 0.2,
+  /**
+   * Fraction of the length over which the lug grows OUT OF the case flank.
+   *
+   * Over this stretch the outer edge is interpolated from the case's own silhouette
+   * to the lug's width, which is what turns the junction into a shoulder. Without it
+   * the lug simply began at full width wherever its root happened to fall, standing
+   * off the case with a wedge of daylight behind it — four blades beside a cylinder
+   * rather than one machined mass.
+   */
+  rootBlend: 0.35,
+  /** How far inside the case skin the root sits, so its open end never shows. */
+  rootBury: 0.3,
 } as const
 
-interface LugSection {
-  z: number
-  cx: number
-  cy: number
-  hx: number
-  hy: number
+/**
+ * How far out in x the case reaches at height `y`, `z` along the lug's axis.
+ *
+ * The case is a surface of revolution of radius `flankRadius(y)`, so this is just
+ * that circle sliced at z — and it is the curve the lug's root is cut to.
+ */
+function caseSilhouetteX(y: number, z: number): number {
+  const r = flankRadius(y)
+  return Math.sqrt(Math.max(0.04, r * r - z * z))
 }
 
-function lugSection(v: number): LugSection {
-  const lerp = (a: number, b: number, t: number) => a + (b - a) * t
-  const z = -lerp(LUG.rootZ, LUG.tipZ, v)
+const _sec = new THREE.Vector2()
 
-  // Width tapers continuously along the whole lug. At the root it lands within a
-  // tenth of a millimetre of the case circle, so the shoulder still grows out of
-  // the case seamlessly, but the narrowing now runs the full visible length.
-  const width = lerp(LUG.widthAtRoot, LUG.widthAtTip, Math.pow(v, LUG.taperExponent))
-  const xOut = LUG.innerX + width
-  const yTop = lerp(LUG.topAtRoot, LUG.topAtTip, Math.pow(v, 1.5))
-  const yBot = lerp(LUG.bottomAtRoot, LUG.bottomAtTip, Math.pow(v, 1.7))
+/**
+ * One point on the lug's cross-section, traversed counter-clockwise as a rounded
+ * rectangle: outer face up, over the top, down the inner face, back along the base.
+ *
+ * A rounded rectangle rather than the superellipse this used to be, because the
+ * INNER face has to be a genuine flat wall. It is the surface the end link sits
+ * against, and a rounded section only ever touches the bracelet along a single line
+ * — which is why the lugs read as running alongside the bracelet rather than
+ * gripping it.
+ *
+ * The outer edge is a FUNCTION of height, not a constant, so the root can be cut to
+ * the case's own silhouette while the tip is a clean flat flank.
+ */
+function lugSectionPoint(
+  u: number,
+  xIn: number,
+  outerAt: (y: number) => number,
+  bot: number,
+  top: number,
+  crown: number,
+): THREE.Vector2 {
+  const mid = (top + bot) / 2
+  const r = Math.min(
+    LUG.cornerRadius,
+    (top - bot) * 0.42,
+    Math.max(0.02, (outerAt(mid) - xIn) * 0.42),
+  )
+  const yLo = bot + r
+  const yHi = top - r
+  const xHi = outerAt(yHi)
+  const xLo = outerAt(yLo)
+  const seg = Math.floor(u * 8) % 8
+  const s = (u * 8) % 1
+  const quarter = (from: number) => from + (s * Math.PI) / 2
 
-  // Blunt rounded nose: a quarter-circle collapse over the last stretch, so the
-  // loft closes on itself instead of needing a separate end cap.
-  let shrink = 1
-  if (v > 1 - LUG.noseFraction) {
-    const t = (v - (1 - LUG.noseFraction)) / LUG.noseFraction
-    shrink = Math.sqrt(Math.max(0, 1 - t * t))
-  }
-
-  return {
-    z,
-    cx: (LUG.innerX + xOut) / 2,
-    cy: (yTop + yBot) / 2,
-    hx: ((xOut - LUG.innerX) / 2) * shrink,
-    hy: ((yTop - yBot) / 2) * shrink,
+  switch (seg) {
+    case 0: {
+      const y = yLo + (yHi - yLo) * s
+      return _sec.set(outerAt(y), y)
+    }
+    case 1: {
+      const a = quarter(0)
+      return _sec.set(xHi - r + r * Math.cos(a), yHi + r * Math.sin(a))
+    }
+    case 2: {
+      // Top face, outer to inner. Crowned across its width: a real lug's top is a
+      // shallow dome, and it is that curve which pulls a moving highlight along the
+      // lug as the watch turns. Squared so it meets the corners with matching SLOPE
+      // as well as matching height — a plain sine leaves a 32 degree kink there,
+      // right on the crease threshold, which shows up as a hairline along the edge.
+      const x0 = xHi - r
+      const x1 = xIn + r
+      return _sec.set(x0 + (x1 - x0) * s, top + crown * Math.sin(Math.PI * s) ** 2)
+    }
+    case 3: {
+      const a = quarter(Math.PI / 2)
+      return _sec.set(xIn + r + r * Math.cos(a), yHi + r * Math.sin(a))
+    }
+    case 4: {
+      return _sec.set(xIn, yHi + (yLo - yHi) * s)
+    }
+    case 5: {
+      const a = quarter(Math.PI)
+      return _sec.set(xIn + r + r * Math.cos(a), yLo + r * Math.sin(a))
+    }
+    case 6: {
+      const x0 = xIn + r
+      const x1 = xLo - r
+      return _sec.set(x0 + (x1 - x0) * s, bot)
+    }
+    default: {
+      const a = quarter((3 * Math.PI) / 2)
+      return _sec.set(xLo - r + r * Math.cos(a), yLo + r * Math.sin(a))
+    }
   }
 }
+
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+const smoothstep = (t: number) => t * t * (3 - 2 * t)
 
 function buildLug(): THREE.BufferGeometry {
-  const n = LUG.sectionExponent
-  const superell = (t: number, half: number) => {
-    const c = Math.cos(t)
-    return Math.sign(c) * Math.pow(Math.abs(c), 2 / n) * half
-  }
+  // u must divide into eight for the section's sides and corners to land on
+  // segment boundaries.
+  const g = parametricSurface(96, 80, (u, v, target) => {
+    const z = lerp(LUG.rootZ, LUG.tipZ, v)
+    const top = lerp(LUG.topAtRoot, LUG.topAtTip, Math.pow(v, 1.5))
+    const bot = lerp(LUG.bottomAtRoot, LUG.bottomAtTip, Math.pow(v, 1.7))
+    const width = lerp(LUG.widthAtRoot, LUG.widthAtTip, Math.pow(v, LUG.taperExponent))
+    const blend = v >= LUG.rootBlend ? 0 : 1 - smoothstep(v / LUG.rootBlend)
 
-  const g = parametricSurface(48, 64, (u, v, target) => {
-    const s = lugSection(v)
-    const t = u * Math.PI * 2
-    const sn = Math.sin(t)
-    target.set(
-      s.cx + superell(t, s.hx),
-      s.cy + Math.sign(sn) * Math.pow(Math.abs(sn), 2 / n) * s.hy,
-      s.z,
-    )
+    const outerAt = (y: number) => {
+      const lugX = LUG.innerX + width
+      if (blend <= 0) return lugX
+      const caseX = caseSilhouetteX(y, z) - LUG.rootBury
+      return Math.max(LUG.innerX + 0.4, lugX + (caseX - lugX) * blend)
+    }
+
+    // Blunt rounded nose: a quarter-circle collapse of the whole section over the
+    // last stretch, so the loft closes on itself instead of needing an end cap.
+    let shrink = 1
+    if (v > 1 - LUG.noseFraction) {
+      const t = (v - (1 - LUG.noseFraction)) / LUG.noseFraction
+      shrink = Math.sqrt(Math.max(0, 1 - t * t))
+    }
+
+    const p = lugSectionPoint(u, LUG.innerX, outerAt, bot, top, LUG.crown * (1 - blend))
+    const cy = (top + bot) / 2
+    const cx = (LUG.innerX + outerAt(cy)) / 2
+    target.set(cx + (p.x - cx) * shrink, cy + (p.y - cy) * shrink, -z)
   })
   return toCreasedNormals(g, Math.PI / 4)
 }
@@ -203,8 +300,12 @@ export function buildMiddleCase(): THREE.BufferGeometry {
     const lugs: THREE.BufferGeometry[] = []
     for (const sx of [-1, 1]) {
       for (const sz of [-1, 1]) {
-        const lug = buildLug()
+        const lug = buildLug().clone()
         lug.scale(sx, 1, sz)
+        // Mirroring on ONE axis reverses triangle winding, and the merge below
+        // recomputes normals from winding — so two of the four lugs would light as
+        // if turned inside out. Flip them back.
+        if (sx * sz < 0) flipWinding(lug)
         lugs.push(lug)
       }
     }

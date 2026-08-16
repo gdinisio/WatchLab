@@ -186,3 +186,35 @@ export function subdivide(g: THREE.BufferGeometry, levels = 1): THREE.BufferGeom
 
   return work
 }
+
+/**
+ * Reverses triangle winding in place.
+ *
+ * Needed after any mirror. Scaling a geometry by a negative factor on an odd number
+ * of axes flips its handedness, so every triangle now faces backwards — and anything
+ * that recomputes normals from winding afterwards will light the part inside out.
+ */
+export function flipWinding(g: THREE.BufferGeometry): THREE.BufferGeometry {
+  const index = g.getIndex()
+  if (index) {
+    for (let i = 0; i < index.count; i += 3) {
+      const a = index.getX(i)
+      index.setX(i, index.getX(i + 2))
+      index.setX(i + 2, a)
+    }
+    index.needsUpdate = true
+    return g
+  }
+  const pos = g.getAttribute('position') as THREE.BufferAttribute
+  for (let i = 0; i < pos.count; i += 3) {
+    for (const axis of ['X', 'Y', 'Z'] as const) {
+      const get = `get${axis}` as const
+      const set = `set${axis}` as const
+      const a = pos[get](i)
+      pos[set](i, pos[get](i + 2))
+      pos[set](i + 2, a)
+    }
+  }
+  pos.needsUpdate = true
+  return g
+}
