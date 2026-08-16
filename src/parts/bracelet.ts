@@ -107,14 +107,19 @@ export function buildLinkCentre(): THREE.BufferGeometry {
   })
 }
 
-export function buildLinkFlanks(): THREE.BufferGeometry {
-  return cached('brc/linkFlanks', () => {
+/**
+ * ONE satin flank, left or right.
+ *
+ * Modelled separately rather than as a merged pair because of how the bracelet comes
+ * apart: the three pieces of a link sit SIDE BY SIDE across the width, not stacked,
+ * so they separate outward across that width. A single merged geometry can only
+ * travel one way, which left the two flanks sliding off together in one direction —
+ * a movement that says nothing about how the link is built.
+ */
+export function buildLinkFlank(hand: -1 | 1): THREE.BufferGeometry {
+  return cached(`brc/linkFlank${hand}`, () => {
     const { flank, flankOffset } = BRACELET.link
-    const merged = mergeAll(
-      [linkPiece(flank, -flankOffset), linkPiece(flank, flankOffset)],
-      'bracelet',
-    )
-    return toCreasedNormals(merged, Math.PI / 5)
+    return toCreasedNormals(linkPiece(flank, hand * flankOffset), Math.PI / 5)
   })
 }
 

@@ -16,6 +16,8 @@ const _base = new THREE.Quaternion()
 const _euler = new THREE.Euler()
 const _explodePos = new THREE.Vector3()
 const _up = new THREE.Vector3(0, 1, 0)
+const _instanceQuat = new THREE.Quaternion()
+const _instanceMatrix = new THREE.Matrix4()
 const TAU = Math.PI * 2
 
 export interface PartProps {
@@ -44,6 +46,30 @@ export function Part({ def, lib, maxOrder, simpleGlass = false }: PartProps) {
     () => new THREE.Vector3(...(def.position ?? [0, 0, 0])),
     [def],
   )
+
+  /**
+   * Instance transforms, decomposed once.
+   *
+   * An instanced part's group sits at the origin and every copy is offset by its own
+   * matrix, so rotating the GROUP swings all of them around the world origin. For
+   * the bracelet pins — spread down 35mm of drape — a couple of turns threw them
+   * through arcs the width of the screen. A screw unscrews about ITSELF, so the spin
+   * has to be applied per instance, which means keeping the rest pose to rebuild
+   * from each frame.
+   */
+  const instanceRest = useMemo(() => {
+    if (!def.instances) return null
+    return Array.from({ length: def.instances.count }, (_, i) => {
+      const position = new THREE.Vector3()
+      const quaternion = new THREE.Quaternion()
+      const scale = new THREE.Vector3()
+      def.instances!.transform(i).decompose(position, quaternion, scale)
+      return { position, quaternion, scale }
+    })
+  }, [def])
+
+  const instanced = useRef<THREE.InstancedMesh>(null)
+  const lastSpin = useRef(Number.NaN)
   const baseQuat = useMemo(() => {
     _euler.set(...((def.rotation ?? [0, 0, 0]) as [number, number, number]))
     return new THREE.Quaternion().setFromEuler(_euler)
@@ -99,11 +125,26 @@ export function Part({ def, lib, maxOrder, simpleGlass = false }: PartProps) {
     // Always written, never conditionally skipped: leaving the last frame's value in
     // place is exactly how the residual rotation got stranded in the first place.
     _base.copy(baseQuat)
+    const spinAngle = spin ? spin * TAU * p : 0
     if (spin) {
       const sa = spinAxis ?? axis
       _spinAxis.set(sa[0], sa[1], sa[2]).normalize()
-      _q.setFromAxisAngle(_spinAxis, spin * Math.PI * 2 * p)
-      _base.premultiply(_q)
+      if (instanceRest) {
+        if (instanced.current && spinAngle !== lastSpin.current) {
+          _q.setFromAxisAngle(_spinAxis, spinAngle)
+          for (let i = 0; i < instanceRest.length; i++) {
+            const rest = instanceRest[i]
+            _instanceQuat.copy(_q).multiply(rest.quaternion)
+            _instanceMatrix.compose(rest.position, _instanceQuat, rest.scale)
+            instanced.current.setMatrixAt(i, _instanceMatrix)
+          }
+          instanced.current.instanceMatrix.needsUpdate = true
+          lastSpin.current = spinAngle
+        }
+      } else {
+        _q.setFromAxisAngle(_spinAxis, spinAngle)
+        _base.premultiply(_q)
+      }
     }
     if (inspect.current.angle !== 0) {
       _q.setFromAxisAngle(_up, inspect.current.angle)
@@ -120,6 +161,7 @@ export function Part({ def, lib, maxOrder, simpleGlass = false }: PartProps) {
       castShadow
       receiveShadow
       ref={(node) => {
+        instanced.current = node
         if (!node) return
         for (let i = 0; i < def.instances!.count; i++) {
           node.setMatrixAt(i, def.instances!.transform(i))

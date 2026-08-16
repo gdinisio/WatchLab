@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import * as THREE from 'three'
+import CameraControlsImpl from 'camera-controls'
 import type { CameraControls } from '@react-three/drei'
 import { findPart } from '../parts/registry'
 import {
@@ -11,7 +12,7 @@ import {
 import { useViewer } from '../state/store'
 
 /** Framing for the whole assembly when nothing is selected. */
-const HOME_RADIUS = 34
+const HOME_RADIUS = 36
 
 /**
  * Drives the camera for inspection mode.
@@ -27,6 +28,27 @@ const HOME_RADIUS = 34
  */
 export function FocusCamera({ controls }: { controls: React.RefObject<CameraControls | null> }) {
   const selected = useViewer((s) => s.selected)
+
+  /**
+   * The pivot is LOCKED to whatever is being looked at — the watch, or the part
+   * pulled out for inspection. Truck and screen-pan are switched off entirely.
+   *
+   * Panning slides the orbit target sideways, and once it has drifted every
+   * subsequent drag swings the camera around a point that is no longer on the watch:
+   * the subject wanders off-frame and there is no way to get it back short of
+   * selecting something. Rotate and dolly alone can reach any view of a fixed
+   * subject, which is all this scene ever needs.
+   */
+  useEffect(() => {
+    const ctrl = controls.current
+    if (!ctrl) return
+    const { ACTION } = CameraControlsImpl
+    ctrl.mouseButtons.right = ACTION.NONE
+    ctrl.mouseButtons.middle = ACTION.DOLLY
+    ctrl.mouseButtons.wheel = ACTION.DOLLY
+    ctrl.touches.two = ACTION.TOUCH_DOLLY
+    ctrl.touches.three = ACTION.NONE
+  }, [controls])
 
   useEffect(() => {
     const ctrl = controls.current

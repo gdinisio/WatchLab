@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { AXIS, BRACELET, CASE } from '../config/datejust36'
 import {
   END_LINK_Z, braceletPlacements, buildClaspCoronet, buildClaspCover, buildEndLinkCentre,
-  buildEndLinkFlanks, buildLinkCentre, buildLinkFlanks, buildLinkPin, claspTransform,
+  buildEndLinkFlanks, buildLinkCentre, buildLinkFlank, buildLinkPin, claspTransform,
 } from './bracelet'
 import { Y } from './layout'
 import type { PartDef, PartGroup } from './types'
@@ -25,15 +25,23 @@ const runInstances = (side: 1 | -1) => {
 }
 
 /**
- * Pins leave along their OWN axis, sideways out of the bracelet — not along the run.
+ * The bracelet comes apart ACROSS ITS WIDTH, because that is how it goes together.
  *
- * Sending them down the run meant they travelled THROUGH every link ahead of them on
- * the way out, which is exactly what a pin does not do. Pulling them out sideways is
- * how the bracelet is actually taken apart, and it leaves a rank of rods parked clear
- * of the links so you can see what was holding them together. The two runs go to
- * opposite sides so their ranks do not stack on top of each other.
+ * A three-piece link is not a stack: the polished centre and the two satin flanks sit
+ * SIDE BY SIDE across the band, threaded on a pin that runs the same way. So every
+ * piece separates along X — flanks outward to their own side, pins on out past them
+ * — and X is the one axis that stays constant along the whole drape, so the run opens
+ * like a book instead of shearing sideways along itself.
+ *
+ * The centre is the odd one out: being the middle of the sandwich it has nowhere to
+ * go across the width, so it lifts clear instead, and the polished run keeps showing
+ * the drape's shape while everything else peels off it.
  */
-const pinAxis = (side: 1 | -1) => [side, 0, 0] as const
+const ACROSS = (hand: -1 | 1) => [hand, 0, 0] as const
+const LIFT = [0, 1, 0] as const
+
+/** Pins withdraw to the side the watch's own run leans toward, so the ranks do not stack. */
+const pinHand = (side: 1 | -1): -1 | 1 => (side === 1 ? 1 : -1)
 
 const endLinkInstance = (side: 1 | -1) => ({
   count: 1,
@@ -56,7 +64,7 @@ const runParts: PartDef[] = SIDES.flatMap(({ key, side, axis, label }) => [
     material: 'steelPolished',
     geometry: buildEndLinkCentre,
     instances: endLinkInstance(side),
-    explode: { axis, distance: 16, order: 2 },
+    explode: { axis, distance: 15, order: 3 },
     spec: {
       material: '904L Oystersteel',
       function: 'Polished centre of the solid end link, carrying the bracelet’s centre stripe out of the case.',
@@ -72,7 +80,7 @@ const runParts: PartDef[] = SIDES.flatMap(({ key, side, axis, label }) => [
     geometry: buildEndLinkFlanks,
     material: 'steelBrushed',
     instances: endLinkInstance(side),
-    explode: { axis, distance: 22, order: 2 },
+    explode: { axis, distance: 21, order: 3 },
     spec: {
       material: '904L Oystersteel',
       function: 'Satin horns of the end link, cut to the case’s circumference so they close the gap between the lugs.',
@@ -89,7 +97,7 @@ const runParts: PartDef[] = SIDES.flatMap(({ key, side, axis, label }) => [
     // the bracelet read as the wrong watch entirely.
     material: 'steelPolished',
     instances: runInstances(side),
-    explode: { axis, distance: 30, order: 1 },
+    explode: { axis: LIFT, distance: 11, order: 2 },
     spec: {
       material: '904L Oystersteel',
       function: 'The broad polished centre section of each three-piece Oyster link.',
@@ -98,21 +106,21 @@ const runParts: PartDef[] = SIDES.flatMap(({ key, side, axis, label }) => [
     },
     ...(key === '6' ? { labelOffset: [0, -5, 10] as const } : {}),
   },
-  {
-    id: `link-flanks-${key}`,
-    name: `Link Flanks · ${label}`,
+  ...([-1, 1] as const).map((hand) => ({
+    id: `link-flanks-${hand < 0 ? 'l' : 'r'}-${key}`,
+    name: `Link Flanks · ${hand < 0 ? 'left' : 'right'} · ${label}`,
     group,
-    geometry: buildLinkFlanks,
-    material: 'steelBrushed',
+    geometry: () => buildLinkFlank(hand),
+    material: 'steelBrushed' as const,
     instances: runInstances(side),
-    explode: { axis, distance: 36, order: 1 },
+    explode: { axis: ACROSS(hand), distance: 15, order: 1 },
     spec: {
       material: '904L Oystersteel',
-      function: 'The satin outer sections either side of the centre link — the contrast that defines an Oyster bracelet.',
-      count: BRACELET.linksPerSide * 2,
+      function: 'The satin outer section beside the centre link — the contrast that defines an Oyster bracelet.',
+      count: BRACELET.linksPerSide,
       finish: 'Satin-brushed along the bracelet',
     },
-  },
+  })),
   {
     id: `link-pins-${key}`,
     name: `Link Pins · ${label}`,
@@ -121,12 +129,15 @@ const runParts: PartDef[] = SIDES.flatMap(({ key, side, axis, label }) => [
     material: 'steelPolished',
     instances: runInstances(side),
     explode: {
-      axis: pinAxis(side),
-      distance: 30,
+      axis: ACROSS(pinHand(side)),
+      // Out past the flank on that side, so the rods park clear of everything else.
+      distance: 29,
       order: 0,
-      // Unscrewing on the way out. Visible only because the head is slotted.
-      spin: 2.5,
-      spinAxis: pinAxis(side),
+      // A slow unscrew, applied per instance so each pin turns about ITSELF. Enough
+      // to read on the slotted heads; more than about a turn and eighteen of them
+      // moving at once is just noise.
+      spin: 1,
+      spinAxis: ACROSS(pinHand(side)),
     },
     spec: {
       material: 'Stainless steel',
