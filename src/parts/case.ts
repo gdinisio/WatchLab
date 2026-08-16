@@ -88,10 +88,23 @@ const LUG = {
    */
   topAtTip: -1.72,
   bottomAtTip: -4.58,
-  /** Fraction of the length over which the tip rounds off into a blunt nose. */
-  noseFraction: 0.13,
-  /** Radius broken onto every edge of the section. */
+  /**
+   * Fraction of the length over which the tip curves down and tails off.
+   *
+   * Longer than it was. The lug does not stop at the bracelet, it CURVES DOWN and
+   * runs out to nothing over its last few millimetres — collapsing the section over
+   * a mere eighth of the length made that a blunt stub instead of a taper.
+   */
+  noseFraction: 0.24,
+  /**
+   * Radius broken onto the section's edges at the ROOT, tightening toward the tip.
+   *
+   * A generous radius belongs at the waist, where the lug is part of the case's
+   * curved flank. Carried out to a tip only 2.9mm tall it rounds the section into a
+   * blob; the real lug end is a defined edge.
+   */
   cornerRadius: 0.85,
+  cornerRadiusAtTip: 0.34,
   /** How far the top face crowns across the lug's width. */
   crown: 0.2,
   /**
@@ -131,6 +144,8 @@ const LUG = {
    * bore is bored and the lugs are what is left standing outside it.
    */
   boreGuardRadius: 15.2,
+  /** How far the tip turns down over its tail-off. */
+  tipDroop: 0.85,
 } as const
 
 /**
@@ -215,10 +230,11 @@ function lugSectionPoint(
   bot: number,
   top: number,
   crown: number,
+  cornerRadius: number,
 ): THREE.Vector2 {
   const mid = (top + bot) / 2
   const r = Math.min(
-    LUG.cornerRadius,
+    cornerRadius,
     (top - bot) * 0.42,
     Math.max(0.02, (outerAt(mid) - xIn) * 0.42),
   )
@@ -318,18 +334,27 @@ function buildLug(): THREE.BufferGeometry {
     const guard = Math.sqrt(Math.max(0, LUG.boreGuardRadius ** 2 - z * z))
     const innerX = Math.max(shell, Math.min(LUG.innerX, guard))
 
-    // Blunt rounded nose: a quarter-circle collapse of the whole section over the
-    // last stretch, so the loft closes on itself instead of needing an end cap.
+    // The tail-off: a quarter-circle collapse of the section over the last stretch,
+    // so the loft closes on itself instead of needing an end cap.
     let shrink = 1
+    let droop = 0
     if (v > 1 - LUG.noseFraction) {
       const t = (v - (1 - LUG.noseFraction)) / LUG.noseFraction
       shrink = Math.sqrt(Math.max(0, 1 - t * t))
+      // And it CURVES DOWN as it goes. A section that only shrinks reads as a stub
+      // sawn off square; the real lug end turns under toward the bracelet as it
+      // thins, which is what gives the tip its hooked profile.
+      droop = LUG.tipDroop * t * t
     }
 
-    const p = lugSectionPoint(u, innerX, outerAt, bot, top, LUG.crown * emerge)
+    const p = lugSectionPoint(
+      u, innerX, outerAt, bot, top,
+      LUG.crown * emerge,
+      lerp(LUG.cornerRadius, LUG.cornerRadiusAtTip, Math.pow(v, 0.8)),
+    )
     const cy = mid
     const cx = (innerX + outerAt(cy)) / 2
-    target.set(cx + (p.x - cx) * shrink, cy + (p.y - cy) * shrink, -z)
+    target.set(cx + (p.x - cx) * shrink, cy + (p.y - cy) * shrink - droop, -z)
   })
   return toCreasedNormals(g, Math.PI / 4)
 }
@@ -574,12 +599,30 @@ export function buildCrown(): THREE.BufferGeometry {
     const face = length / 2
     const dishFloor = face - 0.26
 
+    /**
+     * The body NECKS IN over the grip, to the depth of the flute valleys.
+     *
+     * This is why the crown had no flutes. `buildKnurledBand` cuts its teeth INWARD
+     * from the nominal radius, and the body's wall was a smooth cylinder at that same
+     * radius over the same span — so every tooth was sealed inside solid metal. The
+     * body now runs at the valley radius across the grip and only returns to full
+     * radius for the narrow rims top and bottom, leaving the band to form the
+     * surface between them.
+     */
+    const valley = radius - fluteDepth
+    const gripFrom = -face + 0.45
+    const gripTo = face - 0.62
+
     const body = buildLathe(
       [
         [0, -face],
         [radius - 0.5, -face],
-        [radius, -face + 0.4],
-        [radius, face - 0.55],
+        [radius, -face + 0.36],        // lower rim, full diameter
+        [radius, gripFrom - 0.06],
+        [valley, gripFrom],            // neck in behind the teeth
+        [valley, gripTo],
+        [radius, gripTo + 0.06],       // upper rim
+        [radius, face - 0.5],
         [radius - 0.28, face - 0.16],
         [radius - 0.5, face],          // narrow polished land around the dish
         [radius - 0.62, face - 0.08],  // dish wall
@@ -591,11 +634,11 @@ export function buildCrown(): THREE.BufferGeometry {
 
     const grip = buildKnurledBand({
       radius,
-      height: length - 1.05,
+      height: gripTo - gripFrom,
       notches: fluteCount,
       depth: fluteDepth,
-      yStart: -face + 0.45,
-      chamfer: 0.1,
+      yStart: gripFrom,
+      chamfer: 0.06,
     })
 
     // Coronet, sitting in the dish and standing just shy of the surrounding land.

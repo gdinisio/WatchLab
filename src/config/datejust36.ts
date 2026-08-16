@@ -208,8 +208,15 @@ export const BRACELET = {
    * meets the case flush rather than hanging under it.
    */
   linkThickness: 2.35,
-  /** Links per side, excluding the end link. */
-  linksPerSide: 9,
+  /**
+   * Links per side, excluding the end link.
+   *
+   * MORE of them, because the silhouette is a polyline. Each link is a rigid block
+   * and all the bend happens at the pins, so every joint puts a corner in the
+   * outline; twelve shorter turns of 7.9 degrees read as a curve where nine of 12
+   * read as a staircase. It is also simply closer to the count on the real bracelet.
+   */
+  linksPerSide: 12,
   /**
    * The bracelet is CURVED ACROSS ITS WIDTH, not a stack of flat plates.
    *
@@ -241,7 +248,7 @@ export const BRACELET = {
     centre: 0.40,
     flank: 0.285,
     flankOffset: 0.348,
-    seam: 0.22,
+    seam: 0.18,
     /** How far the centre section stands above the flanks. */
     centreProud: 0.18,
     /**
@@ -258,7 +265,14 @@ export const BRACELET = {
      * opposite of how an Oyster reads.
      */
     edgeRadius: 0.13,
-    endChamfer: 0.09,
+    /**
+     * Larger than the long-edge radius, deliberately.
+     *
+     * This break is at the JOINT, where softening helps one link flow into the next;
+     * the long edges are the ones that have to stay clear cut. Pulling the two apart
+     * lets the silhouette read continuous without the faces going soft.
+     */
+    endChamfer: 0.13,
   },
   /**
    * The drape TIGHTENS as it falls.
@@ -269,7 +283,7 @@ export const BRACELET = {
    * from `startRadius` at the case to `endRadius` at the clasp, biased by `curl` so
    * most of the bend happens in the last third.
    */
-  drape: { startRadius: 62, endRadius: 18, curl: 1.15, startAngle: 0.06 },
+  drape: { startRadius: 62, endRadius: 34, curl: 1.15, startAngle: 0.06 },
   /**
    * Oysterclasp. The cover carries the bracelet's own three-piece section across it,
    * so the polished centre stripe runs unbroken from the case to the buckle.
