@@ -67,8 +67,18 @@ const LUG = {
    */
   shoulder: [16.36, 11.0] as const,
   tip: [12.7, 22.0] as const,
-  topAtRoot: 0.3,
-  bottomAtRoot: -5.4,
+  /**
+   * At the waist the lug is AS TALL AS THE CASE — because there it IS the case.
+   *
+   * These match the flank profile's own extent exactly, so in profile the lug's
+   * shoulder fills the full height of the middle case instead of being a half-height
+   * fin riding on the side of it. Nothing stops the section being this tall once the
+   * inner face is held outside the bore (see `boreGuardRadius`); what used to stop it
+   * was the inner face driving in to 10mm while the top was still above the dial,
+   * which surfaced the lug straight through it.
+   */
+  topAtRoot: 2.0,
+  bottomAtRoot: -5.3,
   /**
    * The tip is set by the BRACELET, not by the case.
    *
@@ -112,6 +122,15 @@ const LUG = {
    * that only thickens inward as the lug emerges.
    */
   rootShell: 1.5,
+  /**
+   * Radius of the cylinder the lug is forbidden to enter, whatever else it is doing.
+   *
+   * Outside the movement bore (15.0), the dial (14.7) and the calibre (14.25) with a
+   * little to spare. Holding the inner face outside this is what lets the lug be full
+   * case height at the shoulder: it is exactly how the real monobloc is made, the
+   * bore is bored and the lugs are what is left standing outside it.
+   */
+  boreGuardRadius: 15.2,
 } as const
 
 /**
@@ -292,7 +311,12 @@ function buildLug(): THREE.BufferGeometry {
      * middle of the watch through the movement.
      */
     const emerge = 1 - blend
-    const innerX = LUG.innerX + (outerAt(mid) - LUG.rootShell - LUG.innerX) * blend
+    const shell = LUG.innerX + (outerAt(mid) - LUG.rootShell - LUG.innerX) * blend
+    // Never inside the bore. Near the waist this dominates; by the time the lug has
+    // run out past z = 11 or so the cylinder has fallen away behind it and the flat
+    // wall the end link sits against takes over.
+    const guard = Math.sqrt(Math.max(0, LUG.boreGuardRadius ** 2 - z * z))
+    const innerX = Math.max(shell, Math.min(LUG.innerX, guard))
 
     // Blunt rounded nose: a quarter-circle collapse of the whole section over the
     // last stretch, so the loft closes on itself instead of needing an end cap.

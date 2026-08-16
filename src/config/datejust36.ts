@@ -41,11 +41,15 @@ export const BEZEL = {
    */
   fluteCount: 56,
   /**
-   * Peak-to-valley depth. With a 2.37mm pitch this puts the facet slope near 22°,
-   * steep enough for each face to catch light distinctly. At 0.30 the facets were
-   * only ~14° off flat and washed into one another.
+   * Peak-to-valley depth AT THE MID-RADIUS; it scales with radius from there, so the
+   * facet angle is identical along the whole length of every flute.
+   *
+   * Deeper than it was. At 0.46 the facets sat close enough to flat that neighbouring
+   * flutes ran into one another and the ring read as a texture rather than as cut
+   * metal; at 0.58 each face turns far enough to take its own reflection, which is
+   * what makes the flutes individually legible.
    */
-  fluteDepth: 0.46,
+  fluteDepth: 0.58,
   /** 0 = pure cosine, higher = sharper crests / broader polished valleys. */
   fluteSharpness: 1.0,
 } as const

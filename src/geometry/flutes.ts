@@ -73,6 +73,17 @@ export interface FlutedSurfaceOptions {
   /** Interpolated steps inserted between consecutive ribs. */
   densifySteps?: number
   /**
+   * Radius at which `fluteDepth` is exact. Set it and the depth scales with radius.
+   *
+   * Flutes are cut at a constant ANGULAR pitch, so their spacing widens as the radius
+   * grows — 1.71mm at the bezel's inner edge against 2.02mm at its outer. Hold the
+   * depth constant across that and the facet angle changes along the length of every
+   * flute, so each one catches light differently at its inner end than its outer and
+   * the ring shimmers unevenly. Scaling depth with radius keeps the V identical the
+   * whole way out, which is what makes the reflection uniform.
+   */
+  depthReference?: number
+  /**
    * Crest shaping. <1 broadens the crests and narrows the valleys; 1 is a plain
    * cosine. Applied after the triangle blend below.
    */
@@ -148,7 +159,12 @@ export function buildFlutedBezel(opts: FlutedBezelOptions): THREE.BufferGeometry
     { r: at(0), y: 0, w: 0 },                     // underside
   ]
 
-  return buildFlutedSurface({ ribs, fluteCount, ...rest })
+  return buildFlutedSurface({
+    ribs,
+    fluteCount,
+    depthReference: (innerRadius + outerRadius) / 2,
+    ...rest,
+  })
 }
 
 /**
@@ -170,6 +186,7 @@ export function buildFlutedSurface(opts: FlutedSurfaceOptions): THREE.BufferGeom
     creaseAngle = Math.PI / 12,
     densifySteps = 7,
     cut = 'radial',
+    depthReference,
   } = opts
 
   const profile = densify(ribs, densifySteps)
@@ -199,7 +216,8 @@ export function buildFlutedSurface(opts: FlutedSurfaceOptions): THREE.BufferGeom
     const { r, y, w } = profile[i]
     const theta = u * Math.PI * 2
     const shaped = fluteWave(theta * fluteCount, sharpness, triangleness, crestBias)
-    const amount = shaped * fluteDepth * 0.5 * w
+    const depth = depthReference ? fluteDepth * (r / depthReference) : fluteDepth
+    const amount = shaped * depth * 0.5 * w
     const rr = r + amount * (cut === 'normal' ? normals[i].nr : 1)
     const yy = y + (cut === 'normal' ? amount * normals[i].ny : 0)
     target.set(Math.sin(theta) * rr, yy, Math.cos(theta) * rr)
