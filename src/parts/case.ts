@@ -36,19 +36,18 @@ const LUG = {
   /** Inner faces sit exactly `lugWidth` apart so the bracelet fits between them. */
   innerX: CASE.lugWidth / 2,
   /**
-   * Where the lug leaves the case.
+   * The lug starts at the WAIST, z = 0.
    *
-   * This has to be SHALLOW. The case circle narrows fast: at |z|=11.5 it only
-   * reaches x=13.3, so a root there gives a 3mm sliver with nothing to blend into —
-   * thin sticks poking out of a circle. At |z|=8 the circle still reaches x=15.7,
-   * which is a 5.7mm shoulder that merges into the case exactly as the reference
-   * does.
+   * This is the whole reason the case reads as one machined mass. An Oyster's lugs
+   * are not four tabs stuck onto a cylinder: on each side of the watch the 12 and 6
+   * lugs are the two ends of ONE continuous arc that runs the length of the case.
+   * Starting each lug at |z|=8 left a stretch of bare circular case between them, so
+   * the four lugs read as separate fins no matter how well each one blended.
    *
-   * The inner corner does then fall inside the 15mm movement bore, but the lug's top
-   * face is held below the dial, so it cannot surface the way it did before; and in
-   * the exploded view the case and movement travel apart anyway.
+   * Running the loft from the waist out, with its root cut to the case's own
+   * silhouette, means the two halves meet flush at z = 0 and the arc is unbroken.
    */
-  rootZ: 8.0,
+  rootZ: 0,
   /** Lug-to-lug ~44mm on a 36mm case: the 1.22 ratio measured off the plan view. */
   tipZ: 22.0,
   /**
@@ -64,7 +63,7 @@ const LUG = {
    * plus lugs read as a cushion, not a circle with tabs stuck on, so the shoulder
    * is meant to stand a little proud of the bezel.
    */
-  widthAtRoot: 8.6,
+  widthAtRoot: 9.5,
   widthAtTip: 2.7,
   /**
    * ABOVE 1, so the width holds up.
@@ -75,7 +74,7 @@ const LUG = {
    * exponent above 1 does the opposite, holding the shoulder broad out past the
    * bezel and doing the narrowing over the visible run to the tip.
    */
-  taperExponent: 1.3,
+  taperExponent: 1.5,
   topAtRoot: 0.3,
   bottomAtRoot: -5.4,
   /**
@@ -102,9 +101,18 @@ const LUG = {
    * off the case with a wedge of daylight behind it — four blades beside a cylinder
    * rather than one machined mass.
    */
-  rootBlend: 0.35,
+  rootBlend: 0.5,
   /** How far inside the case skin the root sits, so its open end never shows. */
   rootBury: 0.3,
+  /**
+   * Thickness of the band the lug starts life as, at the waist.
+   *
+   * The inner face cannot sit at `innerX` all the way back to z = 0 — that would be
+   * a slab reaching from x=10 to the case skin right across the middle of the watch,
+   * straight through the movement. So the root is a thin shell hugging the flank
+   * that only thickens inward as the lug emerges.
+   */
+  rootShell: 1.5,
 } as const
 
 /**
@@ -217,6 +225,18 @@ function buildLug(): THREE.BufferGeometry {
       return Math.max(LUG.innerX + 0.4, lugX + (caseX - lugX) * blend)
     }
 
+    /**
+     * The inner face walks OUT as the lug retreats into the case.
+     *
+     * At the tip and along the visible run it is the flat wall at `innerX` that the
+     * end link sits against; back at the waist it closes up to a thin shell on the
+     * flank, so the root is buried in the case skin rather than driven across the
+     * middle of the watch through the movement.
+     */
+    const midY = (top + bot) / 2
+    const emerge = 1 - blend
+    const innerX = LUG.innerX + (outerAt(midY) - LUG.rootShell - LUG.innerX) * blend
+
     // Blunt rounded nose: a quarter-circle collapse of the whole section over the
     // last stretch, so the loft closes on itself instead of needing an end cap.
     let shrink = 1
@@ -225,9 +245,9 @@ function buildLug(): THREE.BufferGeometry {
       shrink = Math.sqrt(Math.max(0, 1 - t * t))
     }
 
-    const p = lugSectionPoint(u, LUG.innerX, outerAt, bot, top, LUG.crown * (1 - blend))
-    const cy = (top + bot) / 2
-    const cx = (LUG.innerX + outerAt(cy)) / 2
+    const p = lugSectionPoint(u, innerX, outerAt, bot, top, LUG.crown * emerge)
+    const cy = midY
+    const cx = (innerX + outerAt(cy)) / 2
     target.set(cx + (p.x - cx) * shrink, cy + (p.y - cy) * shrink, -z)
   })
   return toCreasedNormals(g, Math.PI / 4)
@@ -251,8 +271,15 @@ const FLANK = {
   apexY: 0.25,
   /** Curvature above the apex — tight, so the case tucks quickly under the bezel. */
   kAbove: 0.34,
-  /** Curvature below the apex — gentle, for the long sweep to the caseback. */
-  kBelow: 0.085,
+  /**
+   * Curvature below the apex — very gentle.
+   *
+   * At 0.085 the flank drew in by 2.35mm on the way down to the caseback, which is
+   * what made the case read as a thin disc that tapers away rather than the solid
+   * block an Oyster is machined from. The real case keeps almost its full width all
+   * the way to the back, leaving a broad flat annulus around the caseback.
+   */
+  kBelow: 0.042,
 } as const
 
 function flankRadius(y: number): number {

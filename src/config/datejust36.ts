@@ -18,7 +18,7 @@ export const CASE = {
   lugWidth: 20,
   lugToLug: 44,
   /** Middle-case (Oyster monobloc) outer radius at its widest, below the bezel. */
-  middleRadius: 17.6,
+  middleRadius: 17.85,
   /** Radius of the machined step the bezel snaps onto. */
   bezelSeatRadius: 15.4,
   /** Inner bore that the movement + casing ring drop into. */
