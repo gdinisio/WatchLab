@@ -105,6 +105,10 @@ input[type=range]::-moz-range-thumb {
 }
 
 .row { display: flex; gap: 6px; flex-wrap: wrap; }
+/* Named teardown stops. One per line: the labels are phrases, not one-word tags, and
+   wrapping them mid-phrase makes the list unreadable. */
+.stops { display: grid; gap: 4px; }
+.stops button.chip { text-align: left; }
 button.chip {
   flex: 1 1 auto; padding: 6px 9px; font: inherit; font-size: 10.5px;
   letter-spacing: 0.04em; color: var(--muted); cursor: pointer;

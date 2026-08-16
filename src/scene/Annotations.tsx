@@ -60,7 +60,6 @@ function Annotation({ def, maxOrder }: { def: PartDef; maxOrder: number }) {
 export function Annotations() {
   const show = useViewer((s) => s.showAnnotations)
   const explodeT = useViewer((s) => s.explodeT)
-  const movementT = useViewer((s) => s.movementT)
   const inspecting = useViewer((s) => s.selected !== null)
   const maxOrder = useMemo(() => maxOrderOf(ALL_PARTS), [])
   const labelled = useMemo(() => ALL_PARTS.filter((p) => p.labelOffset), [])
@@ -68,7 +67,7 @@ export function Annotations() {
   // Labels only make sense once things have started to come apart.
   // Labels track their parts, and the inspected one has left the assembly, so during
   // inspection they only add noise.
-  if (!show || inspecting || Math.max(explodeT, movementT) < 0.08) return null
+  if (!show || inspecting || explodeT < 0.08) return null
 
   return (
     <group>

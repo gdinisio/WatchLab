@@ -76,17 +76,51 @@ export function buildTrainBridge(): THREE.BufferGeometry {
   })
 }
 
-/** Full traversing balance bridge — a Rolex signature, not a half cock. */
+/**
+ * The traversing balance bridge — a Rolex signature, and the reason their balances
+ * hold rate under shock where a cantilevered cock flexes.
+ *
+ * It has to be a BAR anchored at both ends, with the balance jewel in the middle of
+ * the span. What was here was a closed blob covering the whole balance aperture:
+ * structurally a cock, and from the caseback it hid the balance wheel completely,
+ * which is the one thing anyone looks at.
+ */
 export function buildBalanceBridge(): THREE.BufferGeometry {
   return cached('mvt/balanceBridge', () => {
+    // Anchors either side of the balance staff, in shape space (shape y = -world z).
+    const A: [number, number] = [-12.2, -6.6]
+    const J: [number, number] = [-5.4, -9.6]
+    const B: [number, number] = [0.4, -11.2]
+    const halfWidth = 1.65
+    const bossWidth = 2.05
+
+    const unit = (p: [number, number], q: [number, number]): [number, number] => {
+      const d = Math.hypot(q[0] - p[0], q[1] - p[1])
+      return [(q[0] - p[0]) / d, (q[1] - p[1]) / d]
+    }
+    const dA = unit(A, J)
+    const dB = unit(J, B)
+    /** Left-hand normal of a direction. */
+    const nrm = (d: [number, number]): [number, number] => [-d[1], d[0]]
+    const off = (
+      p: [number, number], n: [number, number], k: number,
+    ): [number, number] => [p[0] + n[0] * k, p[1] + n[1] * k]
+
+    const nA = nrm(dA)
+    const nB = nrm(dB)
+    const nJ = nrm(unit(A, B))
+
     const s = new THREE.Shape()
-    s.moveTo(-12.6, -5.6)
-    s.quadraticCurveTo(-8.0, -3.2, -4.2, -5.4)
-    s.quadraticCurveTo(-1.0, -7.4, -1.8, -10.2)
-    s.quadraticCurveTo(-2.6, -12.8, -6.4, -12.4)
-    s.quadraticCurveTo(-10.4, -12.0, -12.4, -9.2)
-    s.quadraticCurveTo(-13.6, -7.4, -12.6, -5.6)
-    pinHole(s, -5.4, -9.6, 0.85)  // balance staff jewel setting
+    s.moveTo(...off(A, nA, halfWidth))
+    s.quadraticCurveTo(...off(J, nJ, bossWidth + 0.2), ...off(B, nB, halfWidth))
+    // Rounded anchor end at B.
+    s.quadraticCurveTo(B[0] + dB[0] * 2.1, B[1] + dB[1] * 2.1, ...off(B, nB, -halfWidth))
+    s.quadraticCurveTo(...off(J, nJ, -(bossWidth + 0.2)), ...off(A, nA, -halfWidth))
+    // Rounded anchor end at A.
+    s.quadraticCurveTo(A[0] - dA[0] * 2.1, A[1] - dA[1] * 2.1, ...off(A, nA, halfWidth))
+    s.closePath()
+
+    pinHole(s, J[0], J[1], 0.85)  // balance staff jewel setting
     return bridge(s, 0.82, 0.07)
   })
 }
@@ -237,20 +271,53 @@ export function buildPalletFork(): THREE.BufferGeometry {
   })
 }
 
+/**
+ * The Perpetual rotor.
+ *
+ * A heavy CRESCENT, not a ring. The winding mass has to be concentrated on one side
+ * or it cannot wind at all — a full ring is balanced, so it would just hang there.
+ * Modelled the same way it is made: a segment of solid gold spanning a little over
+ * half the disc, its light side scooped away almost to the hub, turning on a central
+ * boss. Built as a ring with one spoke it also blocked the entire movement from
+ * view, which is the other reason it was wrong.
+ */
 export function buildRotor(): THREE.BufferGeometry {
   return cached('mvt/rotor', () => {
     const { radius, thickness } = MOVEMENT.rotor
-    // A perpetual rotor is a heavy segment: full ring outside, cut away inside.
+    /** Angular span of the solid mass. */
+    const sweep = Math.PI * 1.18
+    /** How close the scooped light side comes to the centre. */
+    const waist = 2.5
+    const STEPS = 48
+
     const s = new THREE.Shape()
-    s.absarc(0, 0, radius, 0, Math.PI * 2, false)
-    const inner = new THREE.Path()
-    // The cut-out spans a little over half the disc, leaving the weighted segment.
-    inner.absarc(0, 0, radius - 3.6, Math.PI * 0.08, Math.PI * 1.92, false)
-    inner.absarc(0, 0, 2.4, Math.PI * 1.92, Math.PI * 0.08, true)
-    inner.closePath()
-    s.holes.push(inner)
-    pinHole(s, 0, 0, 1.5)
-    return bridge(s, thickness, 0.09)
+    s.absarc(0, 0, radius, -sweep / 2, sweep / 2, false)
+    // Scoop back round the light side, dipping in toward the hub at its deepest.
+    const gap = Math.PI * 2 - sweep
+    for (let i = 1; i <= STEPS; i++) {
+      const f = i / STEPS
+      const a = sweep / 2 + gap * f
+      const r = radius - (radius - waist) * Math.sin(Math.PI * f) ** 0.7
+      s.lineTo(Math.cos(a) * r, Math.sin(a) * r)
+    }
+    s.closePath()
+
+    // Central boss carrying the bearing. Kept separate because the scoop above comes
+    // within 2.5mm of the axis, so a bore punched into the segment itself would cross
+    // its own outline — and drawn wider than the waist so the boss stands clear of
+    // the crescent on the light side instead of being swallowed by it.
+    const hub = new THREE.Shape()
+    hub.absarc(0, 0, 4.6, 0, Math.PI * 2, false)
+    pinHole(hub, 0, 0, 1.5)
+
+    const merged = mergeAll(
+      [
+        flatExtrude(s, { thickness, bevel: 0.11, bevelSegments: 4, curveSegments: 20 }),
+        flatExtrude(hub, { thickness, bevel: 0.08, bevelSegments: 3, curveSegments: 24 }),
+      ],
+      'rotor',
+    )
+    return toCreasedNormals(merged, Math.PI / 4)
   })
 }
 

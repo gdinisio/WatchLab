@@ -43,8 +43,6 @@ export interface PartDef {
   instances?: InstanceSpec
   explode: ExplodeSpec
   spec: PartSpec
-  /** Movement internals also respond to the independent movement explode scalar. */
-  submovement?: boolean
   /** Sapphire parts render with MeshTransmissionMaterial instead of a shared material. */
   transmissive?: boolean
   /**

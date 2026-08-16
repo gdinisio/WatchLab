@@ -10,7 +10,7 @@ import type { PartDef } from './types'
  * whole assembly then shares one inertia, so a scrubbed slider feels like a single
  * mechanism opening rather than eighty independently lagging objects.
  */
-export const explodeState = { t: 0, movement: 0 }
+export const explodeState = { t: 0 }
 
 /** Fraction of the timeline each part occupies. Heavy overlap makes it flow. */
 const WINDOW = 0.55
@@ -25,19 +25,14 @@ function easeOutBack(t: number, overshoot = 1.15) {
 }
 
 export function partProgress(def: PartDef, maxOrder: number): number {
-  const t = def.submovement
-    ? Math.max(explodeState.t, explodeState.movement)
-    : explodeState.t
   const start = (def.explode.order / (maxOrder + 1)) * (1 - WINDOW)
-  return easeOutBack(clamp01((t - start) / WINDOW))
+  return easeOutBack(clamp01((explodeState.t - start) / WINDOW))
 }
 
 /** Drives the damped scalars. Mount once, ahead of the parts. */
 export function ExplodeDriver() {
   useFrame((_, dt) => {
-    const { explodeT, movementT } = useViewer.getState()
-    easing.damp(explodeState, 't', explodeT, 0.24, dt)
-    easing.damp(explodeState, 'movement', movementT, 0.24, dt)
+    easing.damp(explodeState, 't', useViewer.getState().explodeT, 0.24, dt)
   }, -1)
   return null
 }

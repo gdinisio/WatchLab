@@ -8,26 +8,43 @@ const GROUPS: { id: PartGroup; label: string }[] = [
   { id: 'bracelet', label: 'Bracelet' },
 ]
 
-const PRESETS: { label: string; explode: number; movement: number }[] = [
-  { label: 'Assembled', explode: 0, movement: 0 },
-  { label: 'Case', explode: 0.45, movement: 0 },
-  { label: 'Calibre', explode: 0.2, movement: 1 },
-  { label: 'Full', explode: 1, movement: 1 },
+/**
+ * Stops along the ONE teardown timeline, named for what has just come off.
+ *
+ * These are not round numbers picked by eye. A part finishes travelling at
+ * `order / (maxOrder + 1) * (1 - WINDOW) + WINDOW`, so with eleven orders and a 0.55
+ * window each value below is the point at which that stage of the strip-down has
+ * completed and the next has barely started.
+ */
+const PRESETS: { label: string; hint: string; t: number }[] = [
+  { label: 'Assembled', hint: 'The watch as worn', t: 0 },
+  { label: 'Bezel & crystal', hint: 'Fluted bezel, sapphire and Cyclops lifted off', t: 0.3 },
+  { label: 'Dial & hands', hint: 'Hands, applied markers and the dial away', t: 0.56 },
+  { label: 'Calibre 3235', hint: 'Bridges, train and automatic module opened', t: 0.82 },
+  { label: 'Every part', hint: 'The complete teardown', t: 1 },
 ]
 
 export function Controls() {
   const {
-    explodeT, movementT, activeGroups, lume, showAnnotations, envRotation,
-    setExplodeT, setMovementT, toggleGroup, setLume, setShowAnnotations,
+    explodeT, activeGroups, lume, showAnnotations, envRotation,
+    setExplodeT, toggleGroup, setLume, setShowAnnotations,
     setEnvRotation, setInteracting,
   } = useViewer()
 
+  // Nearest stop, so a chip stays lit while the slider sits on it.
+  const current = PRESETS.reduce((best, p) =>
+    Math.abs(p.t - explodeT) < Math.abs(best.t - explodeT) ? p : best,
+  )
+
   return (
     <div className="controls panel">
-      <h2>Exploded View</h2>
+      <h2>Teardown</h2>
 
       <div className="field">
-        <label>Assembly <span>{Math.round(explodeT * 100)}%</span></label>
+        <label>
+          {Math.abs(current.t - explodeT) < 0.005 ? current.label : 'Disassembly'}
+          <span>{Math.round(explodeT * 100)}%</span>
+        </label>
         <input
           type="range" min={0} max={1} step={0.001} value={explodeT}
           onChange={(e) => setExplodeT(Number(e.target.value))}
@@ -36,23 +53,14 @@ export function Controls() {
         />
       </div>
 
-      <div className="field">
-        <label>Calibre 3235 <span>{Math.round(movementT * 100)}%</span></label>
-        <input
-          type="range" min={0} max={1} step={0.001} value={movementT}
-          onChange={(e) => setMovementT(Number(e.target.value))}
-          onPointerDown={() => setInteracting(true)}
-          onPointerUp={() => setInteracting(false)}
-        />
-      </div>
-
-      <div className="row">
+      <div className="stops">
         {PRESETS.map((p) => (
           <button
             key={p.label}
             className="chip"
-            data-on={explodeT === p.explode && movementT === p.movement}
-            onClick={() => { setExplodeT(p.explode); setMovementT(p.movement) }}
+            title={p.hint}
+            data-on={Math.abs(explodeT - p.t) < 0.005}
+            onClick={() => setExplodeT(p.t)}
           >
             {p.label}
           </button>

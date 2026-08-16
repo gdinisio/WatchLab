@@ -2,10 +2,16 @@ import { create } from 'zustand'
 import type { PartGroup } from '../parts/types'
 
 export interface ViewerState {
-  /** Master explode scalar, 0 = assembled, 1 = fully apart. */
+  /**
+   * The ONE explode scalar: 0 = fully assembled, 1 = fully apart.
+   *
+   * There used to be a second, independent scalar for the calibre. Two sliders
+   * meant two timelines that could disagree — a half-open case around a fully
+   * stripped movement — and nothing in the UI explained which did what. The
+   * per-part `order` cascade already staggers the movement behind the case, so one
+   * scalar covers the whole teardown.
+   */
   explodeT: number
-  /** Independent explode for the calibre, so it can be opened on its own. */
-  movementT: number
   hovered: string | null
   selected: string | null
   /** Groups currently visible; others dim out. */
@@ -20,7 +26,6 @@ export interface ViewerState {
   interacting: boolean
 
   setExplodeT(v: number): void
-  setMovementT(v: number): void
   setHovered(id: string | null): void
   setSelected(id: string | null): void
   toggleGroup(g: PartGroup): void
@@ -35,7 +40,6 @@ export interface ViewerState {
 
 export const useViewer = create<ViewerState>((set) => ({
   explodeT: 0,
-  movementT: 0,
   hovered: null,
   selected: null,
   activeGroups: { case: true, dial: true, movement: true, bracelet: true },
@@ -47,7 +51,6 @@ export const useViewer = create<ViewerState>((set) => ({
   interacting: false,
 
   setExplodeT: (v) => set({ explodeT: Math.max(0, Math.min(1, v)) }),
-  setMovementT: (v) => set({ movementT: Math.max(0, Math.min(1, v)) }),
   setHovered: (hovered) => set({ hovered }),
   setSelected: (selected) => set({ selected }),
   toggleGroup: (g) =>

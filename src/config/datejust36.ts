@@ -73,7 +73,17 @@ export const CASEBACK = {
   outerRadius: 14.8,
   /** Radius of the fluted gripping rim the Rolex tool engages. */
   rimRadius: 14.8,
-  rimNotches: 96,
+  /**
+   * Fine gripping notches for the Rolex casing tool.
+   *
+   * On the real caseback these read as a dense radial sawtooth ring around a plain
+   * satin centre — far finer than a knurl. At mid-radius the pitch works out around
+   * 0.65mm, which is what makes the ring shimmer rather than resolve into teeth.
+   */
+  rimNotches: 112,
+  /** Where the notch ring starts. Inside this is the plain satin centre. */
+  notchInnerRadius: 8.6,
+  notchDepth: 0.3,
   thickness: 1.15,
   domeRise: 0.16,
 } as const
@@ -82,9 +92,15 @@ export const CROWN = {
   /** Twinlock winding crown, 5.3mm. */
   radius: 2.65,
   length: 3.4,
-  /** Number of vertical grip flutes around the crown. */
-  fluteCount: 24,
-  fluteDepth: 0.16,
+  /**
+   * Vertical grip flutes around the crown.
+   *
+   * A Twinlock crown is finely and DEEPLY fluted — the teeth are what you actually
+   * grip through a glove. At 24 x 0.16mm they read as a faint ripple; the reference
+   * shows roughly thirty distinct teeth cut deep enough to throw their own shadow.
+   */
+  fluteCount: 31,
+  fluteDepth: 0.26,
   tubeRadius: 1.5,
   tubeLength: 3.2,
   /** Crown sits at 3 o'clock on the +X axis. */

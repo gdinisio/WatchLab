@@ -16,6 +16,7 @@ const _base = new THREE.Quaternion()
 const _euler = new THREE.Euler()
 const _explodePos = new THREE.Vector3()
 const _up = new THREE.Vector3(0, 1, 0)
+const TAU = Math.PI * 2
 
 export interface PartProps {
   def: PartDef
@@ -56,9 +57,9 @@ export function Part({ def, lib, maxOrder, simpleGlass = false }: PartProps) {
    * on deselect. Keeping it separate also leaves the explode cascade untouched — that
    * is deliberately NOT damped per part, so the assembly opens as one mechanism.
    */
-  const inspect = useRef({ t: 0 })
+  const inspect = useRef({ t: 0, angle: 0 })
 
-  useFrame((state, dt) => {
+  useFrame((_state, dt) => {
     const g = group.current
     if (!g) return
     const p = partProgress(def, maxOrder)
@@ -68,30 +69,47 @@ export function Part({ def, lib, maxOrder, simpleGlass = false }: PartProps) {
     _explodePos.copy(basePos).addScaledVector(_axis, distance * p)
 
     easing.damp(inspect.current, 't', selected ? 1 : 0, 0.42, dt)
+    if (!selected && inspect.current.t < 0.0005) inspect.current.t = 0
     const k = smoothstep(inspect.current.t)
 
-    if (k < 0.0005) {
-      g.position.copy(_explodePos)
-    } else {
-      g.position.lerpVectors(_explodePos, INSPECT_POSITION, k)
+    if (k === 0) g.position.copy(_explodePos)
+    else g.position.lerpVectors(_explodePos, INSPECT_POSITION, k)
+
+    /**
+     * The inspection turn is an ACCUMULATED angle that unwinds, not a function of
+     * elapsed time.
+     *
+     * Driving it from the clock left a part sitting at whatever angle the clock
+     * happened to be at when the damping crossed the cutoff, so deselecting a part
+     * dropped it back into the assembly rotated — and for an INSTANCED part like the
+     * hour markers, that rotation is about the dial's axis, so the whole ring of
+     * markers came back visibly askew.
+     */
+    if (selected) {
+      inspect.current.angle += dt * INSPECT_SPIN_SPEED
+    } else if (inspect.current.angle !== 0) {
+      // Unwind the SHORT way round: fold into (-pi, pi] first, or a part left
+      // turning for a minute spins back through several revolutions on release.
+      const a = inspect.current.angle
+      inspect.current.angle = ((a + Math.PI) % TAU + TAU) % TAU - Math.PI
+      easing.damp(inspect.current, 'angle', 0, 0.4, dt)
+      if (Math.abs(inspect.current.angle) < 1e-4) inspect.current.angle = 0
     }
 
-    if (spin || k > 0.0005) {
-      _base.copy(baseQuat)
-      if (spin) {
-        const sa = spinAxis ?? axis
-        _spinAxis.set(sa[0], sa[1], sa[2]).normalize()
-        _q.setFromAxisAngle(_spinAxis, spin * Math.PI * 2 * p)
-        _base.premultiply(_q)
-      }
-      if (k > 0.0005) {
-        // Slow turn about world Y so the part can be read from every side. Scaled by
-        // k so it eases in with the slide instead of snapping into motion.
-        _q.setFromAxisAngle(_up, state.clock.elapsedTime * INSPECT_SPIN_SPEED * k)
-        _base.premultiply(_q)
-      }
-      g.quaternion.copy(_base)
+    // Always written, never conditionally skipped: leaving the last frame's value in
+    // place is exactly how the residual rotation got stranded in the first place.
+    _base.copy(baseQuat)
+    if (spin) {
+      const sa = spinAxis ?? axis
+      _spinAxis.set(sa[0], sa[1], sa[2]).normalize()
+      _q.setFromAxisAngle(_spinAxis, spin * Math.PI * 2 * p)
+      _base.premultiply(_q)
     }
+    if (inspect.current.angle !== 0) {
+      _q.setFromAxisAngle(_up, inspect.current.angle)
+      _base.premultiply(_q)
+    }
+    g.quaternion.copy(_base)
   })
 
   const material = def.transmissive ? undefined : lib.materials[def.material]

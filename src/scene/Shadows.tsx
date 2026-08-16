@@ -12,7 +12,6 @@ const GROUND_Y = -46
  */
 export function Shadows() {
   const explodeT = useViewer((s) => s.explodeT)
-  const movementT = useViewer((s) => s.movementT)
   const interacting = useViewer((s) => s.interacting)
   const lume = useViewer((s) => s.lume)
 
@@ -24,15 +23,15 @@ export function Shadows() {
     window.clearTimeout(timer.current)
     timer.current = window.setTimeout(() => setSettled(true), 600)
     return () => window.clearTimeout(timer.current)
-  }, [explodeT, movementT, interacting])
+  }, [explodeT, interacting])
 
   // Shadows read as wrong once the assembly is in mid-air, so fade them out.
-  const fade = 1 - Math.min(1, Math.max(explodeT, movementT) * 1.4)
+  const fade = 1 - Math.min(1, explodeT * 1.4)
   if (lume || fade <= 0.02) return null
 
   return settled && !interacting ? (
     <AccumulativeShadows
-      key={`acc-${explodeT.toFixed(2)}-${movementT.toFixed(2)}`}
+      key={`acc-${explodeT.toFixed(2)}`}
       temporal
       frames={90}
       alphaTest={0.85}

@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { BEZEL, CASE, CASEBACK, CROWN, CRYSTAL } from '../config/datejust36'
-import { buildFlutedBezel, buildKnurledBand } from '../geometry/flutes'
+import { buildFlutedBezel, buildFlutedSurface, buildKnurledBand, type Rib } from '../geometry/flutes'
 import { coronetShapes } from '../geometry/logoSvg'
 import { buildLathe } from '../geometry/lathe'
 import { flatExtrude } from '../geometry/shapes'
@@ -370,37 +370,62 @@ export function buildCyclops(): THREE.BufferGeometry {
   })
 }
 
+/**
+ * The screw-down caseback.
+ *
+ * A plain satin centre ringed by a dense radial sawtooth — the notches the Rolex
+ * casing tool bites into. Both are ONE surface of revolution with the flutes
+ * windowed onto the outer annulus, rather than a smooth disc with a knurled band
+ * merged on: a knurled band is cut into a cylindrical wall, so seen from behind —
+ * which is the only way you ever see a caseback — it is edge-on and invisible.
+ *
+ * The notches are cut along the surface NORMAL. The band is nearly flat, and a
+ * radial cut on a flat annulus just slides points around within the same plane and
+ * leaves the surface dead level.
+ */
 export function buildCaseback(): THREE.BufferGeometry {
   return cached('case/back', () => {
-    const { outerRadius, thickness, domeRise, rimNotches } = CASEBACK
-    const steps = 18
-    const outer: P2[] = []
-    for (let i = steps; i >= 0; i--) {
-      const t = i / steps
-      const r = t * (outerRadius - 0.8)
-      const rise = domeRise * (1 - (r / (outerRadius - 0.8)) ** 2)
-      outer.push([r, -thickness / 2 - rise])
-    }
-    const profile: P2[] = [
-      [0, thickness / 2],
-      [outerRadius - 1.1, thickness / 2],
-      [outerRadius - 0.15, thickness / 2 - 0.35],
-      [outerRadius, thickness / 2 - 0.6],
-      [outerRadius, -thickness / 2 + 0.25],
-      ...outer,
+    const { outerRadius, thickness, domeRise, rimNotches, notchInnerRadius, notchDepth } = CASEBACK
+    const half = thickness / 2
+    const inner = notchInnerRadius
+
+    const ribs: Rib[] = [
+      // Inside face, against the casing ring.
+      { r: 0, y: half, w: 0 },
+      { r: outerRadius - 1.2, y: half, w: 0 },
+      { r: outerRadius - 0.2, y: half - 0.4, w: 0 },
+      // Outer wall. The notches wrap over it, which is what gives the ring its
+      // sawtooth silhouette where it meets the case.
+      { r: outerRadius, y: half - 0.75, w: 1 },
+      { r: outerRadius, y: -half + 0.3, w: 1 },
+      { r: outerRadius - 0.22, y: -half + 0.06, w: 1 },
+      // Notch ring, running in across the back face.
+      { r: outerRadius - 0.5, y: -half, w: 1 },
+      { r: inner + 0.2, y: -half - 0.1, w: 1 },
+      // Flutes stop dead here: the boundary between ring and centre is a crisp
+      // circle on the real caseback, not a fade.
+      { r: inner, y: -half - 0.11, w: 0 },
     ]
-    const body = buildLathe(profile, { segments: 224, chamfer: 0.07 })
-    // Fluted gripping rim for the Rolex casing tool.
-    const rim = buildKnurledBand({
-      radius: outerRadius,
-      height: thickness - 0.4,
-      notches: rimNotches,
-      depth: 0.22,
-      yStart: -thickness / 2 + 0.22,
-      chamfer: 0.08,
+
+    // Plain satin centre, very slightly domed.
+    const steps = 14
+    for (let i = steps - 1; i >= 0; i--) {
+      const r = (i / steps) * inner
+      ribs.push({ r, y: -half - 0.11 - domeRise * (1 - (r / inner) ** 2), w: 0 })
+    }
+
+    return buildFlutedSurface({
+      ribs,
+      fluteCount: rimNotches,
+      fluteDepth: notchDepth,
+      cut: 'normal',
+      // Squarer than the bezel's: these are stamped gripping teeth, not cut facets.
+      triangleness: 0.8,
+      crestBias: 0.9,
+      segmentsPerFlute: 8,
+      densifySteps: 3,
+      creaseAngle: Math.PI / 9,
     })
-    const merged = mergeAll([body, rim], 'case')
-    return toCreasedNormals(merged, Math.PI / 6)
   })
 }
 

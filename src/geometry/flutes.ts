@@ -3,7 +3,7 @@ import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.j
 import { parametricSurface } from './utils'
 
 /** A profile vertex: radius, height, and how strongly flutes modulate it. */
-interface Rib {
+export interface Rib {
   r: number
   y: number
   /** 0 = perfectly circular here, 1 = full flute depth. */
@@ -59,12 +59,19 @@ function densify(ribs: Rib[], perSegment: number): Rib[] {
   return out
 }
 
-export interface FlutedBezelOptions {
-  outerRadius: number
-  innerRadius: number
-  height: number
+export interface FlutedSurfaceOptions {
+  /** Meridian profile, traversed clockwise in the (radius, height) plane. */
+  ribs: Rib[]
   fluteCount: number
   fluteDepth: number
+  /**
+   * Which way the groove is cut. `radial` moves points in and out, which only shows
+   * up where the profile slopes; `normal` cuts perpendicular to the surface, which
+   * works on a flat face too.
+   */
+  cut?: 'radial' | 'normal'
+  /** Interpolated steps inserted between consecutive ribs. */
+  densifySteps?: number
   /**
    * Crest shaping. <1 broadens the crests and narrows the valleys; 1 is a plain
    * cosine. Applied after the triangle blend below.
@@ -85,6 +92,12 @@ export interface FlutedBezelOptions {
   creaseAngle?: number
 }
 
+export interface FlutedBezelOptions extends Omit<FlutedSurfaceOptions, 'ribs'> {
+  outerRadius: number
+  innerRadius: number
+  height: number
+}
+
 /**
  * The fluted bezel.
  *
@@ -103,12 +116,7 @@ export function buildFlutedBezel(opts: FlutedBezelOptions): THREE.BufferGeometry
     innerRadius,
     height,
     fluteCount,
-    fluteDepth,
-    sharpness = 1.0,
-    triangleness = 0.94,
-    crestBias = 0.72,
-    segmentsPerFlute = 18,
-    creaseAngle = Math.PI / 12,
+    ...rest
   } = opts
 
   /**
@@ -140,16 +148,61 @@ export function buildFlutedBezel(opts: FlutedBezelOptions): THREE.BufferGeometry
     { r: at(0), y: 0, w: 0 },                     // underside
   ]
 
-  const profile = densify(ribs, 7)
+  return buildFlutedSurface({ ribs, fluteCount, ...rest })
+}
+
+/**
+ * The general form: any surface of revolution with flutes cut around it.
+ *
+ * `ribs` is the meridian profile, traversed CLOCKWISE in the (radius, height) plane
+ * — outward along the top, down the outer wall, back along the underside — with `w`
+ * windowing how strongly each rib is modulated.
+ */
+export function buildFlutedSurface(opts: FlutedSurfaceOptions): THREE.BufferGeometry {
+  const {
+    ribs,
+    fluteCount,
+    fluteDepth,
+    sharpness = 1.0,
+    triangleness = 0.94,
+    crestBias = 0.72,
+    segmentsPerFlute = 18,
+    creaseAngle = Math.PI / 12,
+    densifySteps = 7,
+    cut = 'radial',
+  } = opts
+
+  const profile = densify(ribs, densifySteps)
   const uSegments = Math.max(64, fluteCount * segmentsPerFlute)
+
+  /**
+   * Outward surface normals in the (radius, height) plane, for `cut: 'normal'`.
+   *
+   * Displacing radially only produces relief where the profile SLOPES: on a flat
+   * annulus, moving a point in or out just slides it along the same plane and the
+   * surface stays dead flat. A caseback's notch band is nearly flat, so its teeth
+   * have to be cut perpendicular to the face — which is also how the real ones are
+   * machined.
+   */
+  const normals = profile.map((_, i) => {
+    const a = profile[Math.max(0, i - 1)]
+    const b = profile[Math.min(profile.length - 1, i + 1)]
+    const dr = b.r - a.r
+    const dy = b.y - a.y
+    const len = Math.hypot(dr, dy) || 1
+    // Clockwise traversal, so the outward normal is (-dy, dr) normalised.
+    return { nr: -dy / len, ny: dr / len }
+  })
 
   const geometry = parametricSurface(uSegments, profile.length - 1, (u, v, target) => {
     const i = Math.min(profile.length - 1, Math.round(v * (profile.length - 1)))
     const { r, y, w } = profile[i]
     const theta = u * Math.PI * 2
     const shaped = fluteWave(theta * fluteCount, sharpness, triangleness, crestBias)
-    const rr = r + shaped * fluteDepth * 0.5 * w
-    target.set(Math.sin(theta) * rr, y, Math.cos(theta) * rr)
+    const amount = shaped * fluteDepth * 0.5 * w
+    const rr = r + amount * (cut === 'normal' ? normals[i].nr : 1)
+    const yy = y + (cut === 'normal' ? amount * normals[i].ny : 0)
+    target.set(Math.sin(theta) * rr, yy, Math.cos(theta) * rr)
   })
 
   return toCreasedNormals(geometry, creaseAngle)

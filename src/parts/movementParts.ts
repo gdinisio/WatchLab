@@ -42,10 +42,9 @@ const PIVOT = {
 
 const at = (xz: readonly [number, number], y: number): [number, number, number] => [xz[0], y, xz[1]]
 
-const mvt = (p: Omit<PartDef, 'group' | 'submovement'>): PartDef => ({
+const mvt = (p: Omit<PartDef, 'group'>): PartDef => ({
   ...p,
   group: 'movement',
-  submovement: true,
 })
 
 /** Jewels are scattered across the plate and bridges at the train pivots. */
@@ -62,7 +61,8 @@ const JEWEL_SITES: [number, number, number][] = [
 
 const SCREW_SITES: [number, number, number][] = [
   [-12.0, M.bridges + 0.45, -1.0], [7.9, M.bridges + 0.45, -7.2],
-  [-11.4, M.balanceBridge + 0.5, 6.0], [-2.2, M.balanceBridge + 0.5, 9.6],
+  // The two balance-bridge anchors, either side of the staff.
+  [-12.2, M.balanceBridge + 0.5, 6.6], [0.4, M.balanceBridge + 0.5, 11.2],
   [9.2, M.bridges + 0.45, 3.4], [-10.4, M.autoBridge + 0.45, -4.6],
   [7.4, M.autoBridge + 0.45, 1.0], [4.6, M.bridges + 0.45, 6.0],
   [-5.0, M.bridges + 0.45, -3.4], [5.0, M.keyless + 0.2, 6.6],
