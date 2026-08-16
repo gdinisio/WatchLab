@@ -275,6 +275,16 @@ export const BRACELET = {
     endChamfer: 0.13,
   },
   /**
+   * The end link is DEEPER than the links it feeds.
+   *
+   * Where it tucks under the case the lug beside it stands 5.25mm tall, against an
+   * ordinary link's 2.61mm envelope — so a constant-thickness end link left a 2.5mm
+   * ledge at exactly the junction the eye follows off the watch. It now tapers from
+   * nearly the lug's own depth at the case down to link thickness at its outer edge,
+   * so the case runs into the bracelet instead of dropping onto it.
+   */
+  endLinkThicknessAtCase: 4.55,
+  /**
    * The drape TIGHTENS as it falls.
    *
    * A constant-radius arc is the giveaway of a CG bracelet: real ones leave the case

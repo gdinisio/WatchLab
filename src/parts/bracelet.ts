@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { BRACELET, CASE } from '../config/datejust36'
 import { coronetShapes } from '../geometry/logoSvg'
-import { archAcrossX, flatExtrude, roundedRect, sectionExtrude } from '../geometry/shapes'
+import { archAcrossX, flatExtrude, roundedRect, sectionExtrude, taperAlongZ } from '../geometry/shapes'
 import { cached, mergeAll, subdivide } from '../geometry/utils'
 import { Y } from './layout'
 
@@ -170,6 +170,17 @@ function endLinkBand(widthFraction: number, offsetFraction: number): THREE.Shape
   return s
 }
 
+/**
+ * Local Z limits of the end link, for the thickness taper.
+ *
+ * Shape +Y becomes world -Z, so the CASE side of the piece is at negative local z —
+ * furthest back at the horns, where the case's circumference is nearest — and the
+ * outer edge that meets the first Oyster link is at positive local z.
+ */
+const END_LINK_Z_AT_CASE =
+  Math.sqrt(END_LINK.caseRadius ** 2 - HALF_WIDTH ** 2) - END_LINK.centreZ
+const END_LINK_Z_AT_LINK = END_LINK.outerZ - END_LINK.centreZ
+
 function endLinkPiece(
   widthFraction: number,
   offsetFraction: number,
@@ -182,8 +193,30 @@ function endLinkPiece(
     bevelSegments: 3,
     curveSegments: 8,
   })
-  g.translate(0, yOffset, 0)
-  return archAcrossX(subdivide(g, 2), HALF_WIDTH, BRACELET.arch.rise, BRACELET.arch.exponent)
+
+  // Deep where the case is deep, ordinary where the bracelet takes over. Applied
+  // before the offset and the arch so neither gets scaled with it.
+  const swollen = subdivide(g, 2)
+  taperAlongZ(
+    swollen,
+    { z: END_LINK_Z_AT_CASE, scale: BRACELET.endLinkThicknessAtCase / thickness },
+    { z: END_LINK_Z_AT_LINK, scale: 1 },
+  )
+  swollen.translate(0, yOffset, 0)
+
+  // The arch fades in over the same run. Held flat where the lugs close around it,
+  // full by the time the first Oyster link picks it up.
+  const span = END_LINK_Z_AT_LINK - END_LINK_Z_AT_CASE
+  return archAcrossX(
+    swollen,
+    HALF_WIDTH,
+    BRACELET.arch.rise,
+    BRACELET.arch.exponent,
+    (z) => {
+      const t = Math.min(1, Math.max(0, (z - END_LINK_Z_AT_CASE) / span))
+      return 0.25 + 0.75 * (t * t * (3 - 2 * t))
+    },
+  )
 }
 
 /** World Z the end link instance sits at — must match the plan shape it is cut from. */

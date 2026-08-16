@@ -98,11 +98,47 @@ export function archAcrossX(
   halfWidth: number,
   rise: number,
   exponent = 2.4,
+  /**
+   * Optional per-Z weight on the arch, 0 = flat.
+   *
+   * An end link is machined FLAT where it is captured between the lugs and only picks
+   * the bracelet's curve up as it runs out. Arching it uniformly drops its outer
+   * corners below the lug tips that are supposed to be closing around it.
+   */
+  weightAtZ?: (z: number) => number,
 ): THREE.BufferGeometry {
   const pos = g.getAttribute('position') as THREE.BufferAttribute
   for (let i = 0; i < pos.count; i++) {
     const t = Math.min(1, Math.abs(pos.getX(i)) / halfWidth)
-    pos.setY(i, pos.getY(i) - rise * Math.pow(t, exponent))
+    const w = weightAtZ ? weightAtZ(pos.getZ(i)) : 1
+    pos.setY(i, pos.getY(i) - rise * Math.pow(t, exponent) * w)
+  }
+  pos.needsUpdate = true
+  g.computeVertexNormals()
+  return g
+}
+
+/**
+ * Tapers a flat-extruded piece's thickness along Z, scaling about `centreY`.
+ *
+ * For a part that has to meet something much deeper at one end and something thin at
+ * the other — an end link, thick where it tucks under the case and no thicker than an
+ * ordinary link where the bracelet takes over. Run `subdivide` first, and taper
+ * before arching so the arch's offset is not scaled along with the thickness.
+ */
+export function taperAlongZ(
+  g: THREE.BufferGeometry,
+  from: { z: number; scale: number },
+  to: { z: number; scale: number },
+  centreY = 0,
+): THREE.BufferGeometry {
+  const pos = g.getAttribute('position') as THREE.BufferAttribute
+  const span = to.z - from.z || 1
+  for (let i = 0; i < pos.count; i++) {
+    const t = Math.min(1, Math.max(0, (pos.getZ(i) - from.z) / span))
+    const eased = t * t * (3 - 2 * t)
+    const scale = from.scale + (to.scale - from.scale) * eased
+    pos.setY(i, centreY + (pos.getY(i) - centreY) * scale)
   }
   pos.needsUpdate = true
   g.computeVertexNormals()
