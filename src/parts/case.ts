@@ -51,30 +51,22 @@ const LUG = {
   /** Lug-to-lug ~44mm on a 36mm case: the 1.22 ratio measured off the plan view. */
   tipZ: 22.0,
   /**
-   * The lug is driven by its WIDTH, not by an outer-edge radius.
+   * The outer edge is ONE ARC, not a width taper.
    *
-   * Chasing the case circle put all the taper in the buried root: by the time the
-   * lug emerged, the edge had already flattened to near-parallel, so the visible
-   * part was a rectangle. Tapering the width directly guarantees the narrowing
-   * happens over the part you can actually see.
+   * Driving it from a width that fell off with distance produced two curves joined
+   * end to end. The width held up early, so the edge ran near-parallel from the
+   * waist out to the shoulder — a visibly FLAT stretch — and only then broke into
+   * the taper. The side of an Oyster is a single continuous arc from the waist right
+   * out to the lug tip, with no straight section anywhere along it.
    *
-   * The plan-view reference also settles a question the side views could not: the
-   * lug outline flares OUTSIDE the bezel circle before tapering to the tip. Case
-   * plus lugs read as a cushion, not a circle with tabs stuck on, so the shoulder
-   * is meant to stand a little proud of the bezel.
+   * So the edge is a circle fitted through three points. The waist point is supplied
+   * at build time from the flank's own widest radius, so the arc and the case meet
+   * exactly and share a vertical tangent there; `shoulder` sets how full the side
+   * is, and `tip` is the outer corner of the lug. Moving `shoulder` makes the side
+   * fuller or leaner and it stays a single arc either way.
    */
-  widthAtRoot: 9.5,
-  widthAtTip: 2.7,
-  /**
-   * ABOVE 1, so the width holds up.
-   *
-   * This was 0.7, which front-loads the taper — and since the first third of the lug
-   * is buried in the case, all of the width was spent where nobody can see it: by
-   * the time the lug cleared the bezel it was down to 4.7mm and read as a spike. An
-   * exponent above 1 does the opposite, holding the shoulder broad out past the
-   * bezel and doing the narrowing over the visible run to the tip.
-   */
-  taperExponent: 1.5,
+  shoulder: [16.36, 11.0] as const,
+  tip: [12.7, 22.0] as const,
   topAtRoot: 0.3,
   bottomAtRoot: -5.4,
   /**
@@ -102,8 +94,15 @@ const LUG = {
    * rather than one machined mass.
    */
   rootBlend: 0.5,
-  /** How far inside the case skin the root sits, so its open end never shows. */
-  rootBury: 0.3,
+  /**
+   * How far inside the case skin the root sits, as a fraction of its radius.
+   *
+   * Only enough to stop the lug's surface being exactly coplanar with the flank at
+   * the waist, which would z-fight. It does not need to hide an open end: the +z and
+   * -z lofts have identical sections at z = 0, so mirroring closes the surface
+   * through the waist on its own.
+   */
+  rootBury: 0.008,
   /**
    * Thickness of the band the lug starts life as, at the waist.
    *
@@ -124,6 +123,55 @@ const LUG = {
 function caseSilhouetteX(y: number, z: number): number {
   const r = flankRadius(y)
   return Math.sqrt(Math.max(0.04, r * r - z * z))
+}
+
+/**
+ * The circle through three points, as centre and radius in the (x, z) plane.
+ *
+ * Returns null when the points are collinear — which for the side arc would mean a
+ * dead straight lug edge, so the caller falls back rather than dividing by zero.
+ */
+function circleThrough(
+  p: readonly [number, number],
+  q: readonly [number, number],
+  r: readonly [number, number],
+): { cx: number; cz: number; radius: number } | null {
+  const d = 2 * (p[0] * (q[1] - r[1]) + q[0] * (r[1] - p[1]) + r[0] * (p[1] - q[1]))
+  if (Math.abs(d) < 1e-9) return null
+  const sp = p[0] * p[0] + p[1] * p[1]
+  const sq = q[0] * q[0] + q[1] * q[1]
+  const sr = r[0] * r[0] + r[1] * r[1]
+  const cx = (sp * (q[1] - r[1]) + sq * (r[1] - p[1]) + sr * (p[1] - q[1])) / d
+  const cz = (sp * (r[0] - q[0]) + sq * (p[0] - r[0]) + sr * (q[0] - p[0])) / d
+  return { cx, cz, radius: Math.hypot(p[0] - cx, p[1] - cz) }
+}
+
+/**
+ * The case side in plan, from the waist out to the lug tip.
+ *
+ * The waist point is taken from the flank at the lug's own mid-height, so the arc
+ * starts exactly on the case and — since both curves have a vertical tangent at
+ * z = 0 — leaves it smoothly rather than stepping off it.
+ */
+type Arc = { cx: number; cz: number; radius: number } | null
+let sideArcCache: Arc | undefined
+
+// Fitted lazily, not at module load: the waist point comes from `flankRadius`, whose
+// FLANK table is declared further down the file. Function declarations hoist but
+// `const` does not, so evaluating this eagerly reads it inside its dead zone.
+function sideArc(): Arc {
+  if (sideArcCache === undefined) {
+    const midY = (LUG.topAtRoot + LUG.bottomAtRoot) / 2
+    sideArcCache = circleThrough([flankRadius(midY), 0], LUG.shoulder, LUG.tip)
+  }
+  return sideArcCache
+}
+
+/** How far out the side arc reaches at `z`. */
+function sideArcX(z: number): number {
+  const arc = sideArc()
+  if (!arc) return LUG.tip[0]
+  return arc.cx + Math.sqrt(Math.max(0.04, arc.radius ** 2 - (z - arc.cz) ** 2))
 }
 
 const _sec = new THREE.Vector2()
@@ -215,14 +263,24 @@ function buildLug(): THREE.BufferGeometry {
     const z = lerp(LUG.rootZ, LUG.tipZ, v)
     const top = lerp(LUG.topAtRoot, LUG.topAtTip, Math.pow(v, 1.5))
     const bot = lerp(LUG.bottomAtRoot, LUG.bottomAtTip, Math.pow(v, 1.7))
-    const width = lerp(LUG.widthAtRoot, LUG.widthAtTip, Math.pow(v, LUG.taperExponent))
     const blend = v >= LUG.rootBlend ? 0 : 1 - smoothstep(v / LUG.rootBlend)
+    const mid = (top + bot) / 2
+    const edge = sideArcX(z)
 
+    /**
+     * Near the root the section takes on the case's own VERTICAL taper — narrowing
+     * top and bottom exactly as the flank does — while keeping the arc's magnitude.
+     *
+     * Interpolating the magnitude toward the silhouette instead, as this did, pulled
+     * the outline off the arc and down onto the case circle for the first few
+     * millimetres. The circle turns in far harder than the arc does, so the side
+     * picked up an inflection right where it is supposed to be smoothest.
+     */
     const outerAt = (y: number) => {
-      const lugX = LUG.innerX + width
-      if (blend <= 0) return lugX
-      const caseX = caseSilhouetteX(y, z) - LUG.rootBury
-      return Math.max(LUG.innerX + 0.4, lugX + (caseX - lugX) * blend)
+      if (blend <= 0) return edge
+      const shape = caseSilhouetteX(y, z) / caseSilhouetteX(mid, z)
+      const scaled = edge * (1 + (shape - 1) * blend) * (1 - LUG.rootBury * blend)
+      return Math.max(LUG.innerX + 0.4, scaled)
     }
 
     /**
@@ -233,9 +291,8 @@ function buildLug(): THREE.BufferGeometry {
      * flank, so the root is buried in the case skin rather than driven across the
      * middle of the watch through the movement.
      */
-    const midY = (top + bot) / 2
     const emerge = 1 - blend
-    const innerX = LUG.innerX + (outerAt(midY) - LUG.rootShell - LUG.innerX) * blend
+    const innerX = LUG.innerX + (outerAt(mid) - LUG.rootShell - LUG.innerX) * blend
 
     // Blunt rounded nose: a quarter-circle collapse of the whole section over the
     // last stretch, so the loft closes on itself instead of needing an end cap.
@@ -246,7 +303,7 @@ function buildLug(): THREE.BufferGeometry {
     }
 
     const p = lugSectionPoint(u, innerX, outerAt, bot, top, LUG.crown * emerge)
-    const cy = midY
+    const cy = mid
     const cx = (innerX + outerAt(cy)) / 2
     target.set(cx + (p.x - cx) * shrink, cy + (p.y - cy) * shrink, -z)
   })
