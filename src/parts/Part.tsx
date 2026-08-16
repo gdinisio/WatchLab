@@ -89,7 +89,7 @@ export function Part({ def, lib, maxOrder, simpleGlass = false }: PartProps) {
     const g = group.current
     if (!g) return
     const p = partProgress(def, maxOrder)
-    const { axis, distance, spin, spinAxis } = def.explode
+    const { axis, distance, spin, spinAxis, spinPhase = 1 } = def.explode
 
     _axis.set(axis[0], axis[1], axis[2])
     _explodePos.copy(basePos).addScaledVector(_axis, distance * p)
@@ -125,7 +125,10 @@ export function Part({ def, lib, maxOrder, simpleGlass = false }: PartProps) {
     // Always written, never conditionally skipped: leaving the last frame's value in
     // place is exactly how the residual rotation got stranded in the first place.
     _base.copy(baseQuat)
-    const spinAngle = spin ? spin * TAU * p : 0
+    // Rotation is complete once the part is `spinPhase` of the way out, and frozen
+    // beyond that — so on the way back in it travels unturned and threads home over
+    // the last stretch.
+    const spinAngle = spin ? spin * TAU * Math.min(1, p / spinPhase) : 0
     if (spin) {
       const sa = spinAxis ?? axis
       _spinAxis.set(sa[0], sa[1], sa[2]).normalize()
@@ -177,7 +180,7 @@ export function Part({ def, lib, maxOrder, simpleGlass = false }: PartProps) {
           <meshPhysicalMaterial
             transmission={1}
             ior={lib.sapphire.ior}
-            thickness={lib.sapphire.thickness}
+            thickness={def.glassThickness ?? lib.sapphire.thickness}
             roughness={0}
             metalness={0}
             // AR coating: cuts surface reflectance to well under 1%, so the crystal
@@ -193,6 +196,7 @@ export function Part({ def, lib, maxOrder, simpleGlass = false }: PartProps) {
         ) : (
           <MeshTransmissionMaterial
             {...lib.sapphire}
+            thickness={def.glassThickness ?? lib.sapphire.thickness}
             specularIntensity={def.arCoated === false ? 0.85 : lib.sapphire.specularIntensity}
             envMapIntensity={def.arCoated === false ? 1.3 : lib.sapphire.envMapIntensity}
           />

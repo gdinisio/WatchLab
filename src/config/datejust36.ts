@@ -239,7 +239,7 @@ export const BRACELET = {
     flankOffset: 0.348,
     seam: 0.22,
     /** How far the centre section stands above the flanks. */
-    centreProud: 0.12,
+    centreProud: 0.18,
     /**
      * Radius broken onto every long edge of a link section, and the chamfer rolled
      * onto its ends.
@@ -247,8 +247,13 @@ export const BRACELET = {
      * Both are deliberately small. Together with the seam they set how wide the joint
      * between links reads, and at 0.3/0.13 the bracelet came out looking like a row
      * of separate rounded tiles rather than one tightly-jointed band.
+     *
+     * Smaller again at 0.13: the real bracelet is CLEAR CUT, its faces meeting at
+     * definite edges with only a hairline break polished onto them. A generous radius
+     * rounds each face into the next and the whole band goes soft, which is the
+     * opposite of how an Oyster reads.
      */
-    edgeRadius: 0.22,
+    edgeRadius: 0.13,
     endChamfer: 0.09,
   },
   /**
@@ -261,7 +266,11 @@ export const BRACELET = {
    * most of the bend happens in the last third.
    */
   drape: { startRadius: 62, endRadius: 18, curl: 1.15, startAngle: 0.06 },
-  clasp: { length: 22, width: 16, thickness: 3.1 },
+  /**
+   * Oysterclasp. The cover carries the bracelet's own three-piece section across it,
+   * so the polished centre stripe runs unbroken from the case to the buckle.
+   */
+  clasp: { length: 22, width: 16, thickness: 3.1, cornerRadius: 0.7 },
 } as const
 
 /** Named parts explode along these axes. Watch lies dial-up: +Y is the stack axis. */

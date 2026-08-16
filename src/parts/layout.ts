@@ -4,15 +4,23 @@
  * Every part builder reads from here so the assembly closes up exactly. Total case
  * height works out to ~11.8mm, matching a Datejust 36.
  */
+/**
+ * The stack is anchored so the case measures its REAL 11.8mm.
+ *
+ * Bezel top at 4.85 and the caseback's lowest point at -6.95 is exactly that. The
+ * back sits 0.35mm deeper than it used to, which both makes the figure honest and
+ * leaves the rotor a clearance it did not have: the movement's lowest point is the
+ * rotor at about -5.2, against a caseback inner face that was at -5.3.
+ */
 export const Y = {
-  casebackOuter: -6.6,
-  casebackSeat: -5.45,
-  casebackInner: -5.3,
+  casebackOuter: -6.95,
+  casebackSeat: -5.8,
+  casebackInner: -5.65,
 
-  caseMiddleBottom: -5.8,
+  caseMiddleBottom: -6.15,
   caseMiddleTop: 2.9,
 
-  casingRing: -4.95,
+  casingRing: -5.3,
   rotorPlane: -4.5,
   autoBridge: -3.6,
   trainBridge: -2.7,

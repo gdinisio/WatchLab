@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { AXIS, BRACELET, CASE } from '../config/datejust36'
 import {
-  END_LINK_Z, braceletPlacements, buildClaspCoronet, buildClaspCover, buildEndLinkCentre,
+  END_LINK_Z, braceletPlacements, buildClaspCentre, buildClaspCoronet, buildClaspCover, buildEndLinkCentre,
   buildEndLinkFlanks, buildLinkCentre, buildLinkFlank, buildLinkPin, claspTransform,
 } from './bracelet'
 import { Y } from './layout'
@@ -133,11 +133,13 @@ const runParts: PartDef[] = SIDES.flatMap(({ key, side, axis, label }) => [
       // Out past the flank on that side, so the rods park clear of everything else.
       distance: 29,
       order: 0,
-      // A slow unscrew, applied per instance so each pin turns about ITSELF. Enough
-      // to read on the slotted heads; more than about a turn and eighteen of them
-      // moving at once is just noise.
-      spin: 1,
+      // Applied per instance, so each pin turns about ITSELF rather than orbiting the
+      // assembly. Confined to the last fifth of the travel: closing the bracelet, the
+      // pin slides most of the way home dead straight and only threads over the final
+      // couple of millimetres, which is how it actually goes in.
+      spin: 1.25,
       spinAxis: ACROSS(pinHand(side)),
+      spinPhase: 0.2,
     },
     spec: {
       material: 'Stainless steel',
@@ -163,9 +165,23 @@ export const BRACELET_PARTS: PartDef[] = [
       material: '904L Oystersteel',
       function: 'Folding clasp with a concealed Easylink 5 mm comfort extension.',
       dimension: `${BRACELET.clasp.width} × ${BRACELET.clasp.length} mm`,
-      finish: 'Satin top, polished sides',
+      finish: 'Satin cover, polished bevels',
     },
     labelOffset: [0, -4, 8],
+  },
+  {
+    id: 'clasp-centre',
+    name: 'Clasp Centre',
+    group,
+    geometry: buildClaspCentre,
+    material: 'steelPolished',
+    instances: { count: 1, transform: () => claspTransform() },
+    explode: { axis: LIFT, distance: 13, order: 1 },
+    spec: {
+      material: '904L Oystersteel',
+      function: 'Carries the bracelet’s polished centre stripe across the clasp to the buckle.',
+      finish: 'Mirror-polished',
+    },
   },
   {
     id: 'clasp-coronet',

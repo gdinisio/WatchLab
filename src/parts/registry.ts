@@ -89,9 +89,12 @@ export const CASE_PARTS: PartDef[] = [
     geometry: buildCyclops,
     material: 'steelPolished',
     transmissive: true,
-    // Uncoated: the Cyclops must read as a distinct raised lens with a bright rim.
-    arCoated: false,
-    position: [CRYSTAL.cyclops.distanceFromCentre, Y.crystalTop - 0.05, 0],
+    // Coated, like the crystal. Left uncoated it was simply a mirror.
+    arCoated: true,
+    // The plug runs the full pane thickness plus its dome — the depth the
+    // magnification is actually made of.
+    glassThickness: CRYSTAL.thickness + CRYSTAL.cyclops.rise,
+    position: [CRYSTAL.cyclops.distanceFromCentre, Y.crystalTop, 0],
     explode: { axis: AXIS.up, distance: 35, order: 0 },
     renderOrder: 11,
     spec: {

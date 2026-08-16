@@ -367,10 +367,10 @@ export function buildMiddleCase(): THREE.BufferGeometry {
       [CASE.bezelSeatRadius, Y.caseMiddleTop - 0.02],
       [CASE.bezelSeatRadius, Y.bezelBottom - 0.4],
       // Sampled convex flank, top of the bulge down to the caseback shoulder.
-      ...flankProfile(2.0, -4.9, 26),
+      ...flankProfile(2.0, -5.25, 26),
       // Underside tucks monotonically inward to the caseback aperture. Stepping
       // back outward here produced a self-intersecting lathe and a phantom flange.
-      [flankRadius(-5.2) - 0.35, -5.4],
+      [flankRadius(-5.55) - 0.35, -5.75],
       [CASEBACK.outerRadius + 0.55, Y.caseMiddleBottom],
       [CASEBACK.outerRadius, Y.caseMiddleBottom],
       [CASEBACK.outerRadius, Y.casebackSeat],
@@ -418,39 +418,62 @@ export function buildBezel(): THREE.BufferGeometry {
  * lens built as a real plano-convex cap so it magnifies the date through genuine
  * refraction rather than a fake distortion shader.
  */
+/**
+ * The sapphire crystal — with the Cyclops aperture bored straight through it.
+ *
+ * The lens is NOT a second pane sitting on top. Stacking two transmissive bodies over
+ * the date meant each one refracted the other rather than the dial: drei's
+ * transmission renders the scene into a buffer that excludes only the mesh it is
+ * attached to, so the lens's buffer was full of crystal and the crystal's was full of
+ * lens, and between them the date could not be read at all. One bore, one plug, one
+ * glass path — and the lens becomes thick enough for its curvature to actually bend
+ * anything.
+ *
+ * Losing the lathe costs the crystal its 0.16mm dome, which on a 30mm pane is a
+ * rounding error, and a Datejust crystal is near-flat to begin with.
+ */
 export function buildCrystal(): THREE.BufferGeometry {
   return cached('case/crystal', () => {
-    const { radius, thickness, domeRise } = CRYSTAL
-    const steps = 24
-    const top: P2[] = []
-    const bottom: P2[] = []
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps
-      const r = t * radius
-      // Shallow spherical cap.
-      const rise = domeRise * (1 - (r / radius) ** 2)
-      top.push([r, thickness / 2 + rise])
-      bottom.push([r, -thickness / 2 + rise * 0.25])
-    }
-    const profile: P2[] = [...bottom, ...top.reverse()]
-    return buildLathe(profile, { segments: 192, creaseAngle: Math.PI / 3 })
+    const pane = new THREE.Shape()
+    pane.absarc(0, 0, CRYSTAL.radius, 0, Math.PI * 2, false)
+    const bore = new THREE.Path()
+    // Undersized by a hair so the plug overlaps rather than meeting it face to face:
+    // coincident walls z-fight, and a gap the other way would show as a bright ring.
+    bore.absarc(CRYSTAL.cyclops.distanceFromCentre, 0, CRYSTAL.cyclops.radius - 0.03, 0, Math.PI * 2, true)
+    pane.holes.push(bore)
+
+    const g = flatExtrude(pane, {
+      thickness: CRYSTAL.thickness,
+      bevel: 0.09,
+      bevelSegments: 3,
+      curveSegments: 72,
+    })
+    return toCreasedNormals(g, Math.PI / 5)
   })
 }
 
+/**
+ * The Cyclops, modelled as a PLUG rather than a cap.
+ *
+ * It fills the crystal's bore over the full pane thickness and then domes above it,
+ * so the only thing between the date and the eye is one continuous piece of sapphire
+ * a little over 2mm thick. That depth is what makes the magnification real: a lens
+ * skimmed onto the surface has barely any path length to refract over.
+ *
+ * Local y = 0 is the crystal's TOP face, so the part positions on `Y.crystalTop`.
+ */
 export function buildCyclops(): THREE.BufferGeometry {
   return cached('case/cyclops', () => {
     const { radius, rise, curvature } = CRYSTAL.cyclops
-    const steps = 20
-    const profile: P2[] = [[0, 0]]
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps
-      const r = t * radius
-      // Spherical convex face of the given radius of curvature.
-      const h = curvature - Math.sqrt(Math.max(0, curvature * curvature - r * r))
-      profile.push([r, rise - h])
+    const skirt = CRYSTAL.thickness
+    const steps = 24
+    const profile: P2[] = [[0, -skirt], [radius, -skirt]]
+    // Convex face, worked from the rim back in to the axis.
+    for (let i = steps; i >= 0; i--) {
+      const r = (i / steps) * radius
+      profile.push([r, rise - (curvature - Math.sqrt(Math.max(0, curvature * curvature - r * r)))])
     }
-    profile.push([radius, -0.35], [0, -0.35])
-    return buildLathe(profile, { segments: 128, creaseAngle: Math.PI / 3 })
+    return buildLathe(profile, { segments: 96, creaseAngle: Math.PI / 3 })
   })
 }
 

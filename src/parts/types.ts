@@ -21,6 +21,16 @@ export interface ExplodeSpec {
   spin?: number
   /** Local axis the spin is about. Defaults to the travel axis. */
   spinAxis?: readonly [number, number, number]
+  /**
+   * Fraction of the travel, measured from SEATED, over which the spin happens.
+   *
+   * 1 spreads the rotation across the whole journey, which is how nothing is
+   * actually assembled. A screwed pin is pushed most of the way home with no
+   * rotation at all and only turns over the last millimetre or two as the thread
+   * takes; set this to that fraction and the part reads as being threaded in rather
+   * than drifting in while spinning.
+   */
+  spinPhase?: number
 }
 
 export interface InstanceSpec {
@@ -46,11 +56,22 @@ export interface PartDef {
   /** Sapphire parts render with MeshTransmissionMaterial instead of a shared material. */
   transmissive?: boolean
   /**
-   * Whether this sapphire carries anti-reflective coating. Rolex coats the crystal's
-   * underside, but the Cyclops is a raised lens that stays bright and obvious — mute
-   * its reflections the same way and the magnifier vanishes entirely.
+   * Whether this sapphire carries anti-reflective coating.
+   *
+   * Rolex coats the crystal's underside. Leaving the Cyclops UNCOATED to keep it
+   * obvious backfired: at full Fresnel reflectance a convex dome under a studio rig
+   * is a mirror, so it showed a blown-out highlight instead of the date. It is
+   * coated too — what makes it read is its bore, its rim and what it magnifies.
    */
   arCoated?: boolean
+  /**
+   * Optical path length through this sapphire, in mm.
+   *
+   * Defaults to the crystal's. A part that is much deeper — the Cyclops plug is over
+   * 2mm against the pane's 1.25 — needs its own, or transmission bends light as if
+   * it were thin and nothing magnifies.
+   */
+  glassThickness?: number
   /** Emissive lume geometry, driven by lume mode. */
   luminous?: boolean
   renderOrder?: number

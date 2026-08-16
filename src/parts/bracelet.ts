@@ -211,20 +211,49 @@ export function buildEndLinkFlanks(): THREE.BufferGeometry {
   })
 }
 
-/** Oysterclasp: folding cover, arched to carry the bracelet's section through. */
+function claspSlab(
+  widthFraction: number,
+  thickness: number,
+  yOffset: number,
+  lengthTrim: number,
+): THREE.BufferGeometry {
+  const { length, width, cornerRadius } = BRACELET.clasp
+  const g = flatExtrude(
+    roundedRect(width * widthFraction, length - lengthTrim, cornerRadius),
+    { thickness, bevel: 0.11, bevelSegments: 3, curveSegments: 20 },
+  )
+  g.translate(0, yOffset, 0)
+  // Normalised on the clasp's own half-width so its edges drop by the same amount as
+  // the tapered link ahead of it, and the section runs on unbroken.
+  return archAcrossX(subdivide(g, 2), width / 2, BRACELET.arch.rise, BRACELET.arch.exponent)
+}
+
+/**
+ * The Oysterclasp cover — the satin body of it.
+ *
+ * Corner radius and bevel are both tightened from what they were. The clasp is the
+ * largest flat surface on the watch, so a soft edge there reads as a pebble; the real
+ * cover is a crisp plate with a fine polished break around it.
+ */
 export function buildClaspCover(): THREE.BufferGeometry {
-  return cached('brc/claspCover', () => {
-    const { length, width, thickness } = BRACELET.clasp
-    const g = flatExtrude(roundedRect(width, length, 1.1), {
-      thickness,
-      bevel: 0.22,
-      bevelSegments: 4,
-      curveSegments: 16,
-    })
-    // Normalised on the clasp's own half-width so its edges drop by the same amount
-    // as the tapered link ahead of it, and the section runs on unbroken.
+  return cached('brc/claspCover', () =>
+    toCreasedNormals(claspSlab(1, BRACELET.clasp.thickness, 0, 0), Math.PI / 5),
+  )
+}
+
+/**
+ * The polished centre band across the clasp cover.
+ *
+ * The Oyster's centre stripe does not stop at the last link — it runs over the clasp
+ * to the buckle, which is what makes the bracelet read as one continuous band rather
+ * than a chain with a lid on the end. Same width fraction and same proud step as the
+ * link centres, so it lines up with the run feeding into it.
+ */
+export function buildClaspCentre(): THREE.BufferGeometry {
+  return cached('brc/claspCentre', () => {
+    const proud = BRACELET.link.centreProud
     return toCreasedNormals(
-      archAcrossX(subdivide(g, 2), width / 2, BRACELET.arch.rise, BRACELET.arch.exponent),
+      claspSlab(BRACELET.link.centre / 0.985, BRACELET.clasp.thickness + proud, proud / 2, 1.6),
       Math.PI / 5,
     )
   })
