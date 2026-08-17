@@ -20,6 +20,23 @@ const _instanceQuat = new THREE.Quaternion()
 const _instanceMatrix = new THREE.Matrix4()
 const TAU = Math.PI * 2
 
+/**
+ * Maps cascade progress to distance travelled, in two eased legs.
+ *
+ * Without a `seat` this is the identity — the part just slides. With one, the travel
+ * is split at the mouth of whatever it enters: a long free approach, then a short
+ * slow push. Easing each leg separately means both END at zero velocity, so the part
+ * visibly settles at the mouth, lines up, and only then goes in.
+ */
+function seatedTravel(p: number, seat?: { depth: number; phase: number }): number {
+  if (!seat || p <= 0 || p >= 1) return p
+  const { depth, phase } = seat
+  const ease = (t: number) => t * t * (3 - 2 * t)
+  return p < phase
+    ? ease(p / phase) * depth
+    : depth + ease((p - phase) / (1 - phase)) * (1 - depth)
+}
+
 export interface PartProps {
   def: PartDef
   lib: MaterialLibrary
@@ -89,10 +106,10 @@ export function Part({ def, lib, maxOrder, simpleGlass = false }: PartProps) {
     const g = group.current
     if (!g) return
     const p = partProgress(def, maxOrder)
-    const { axis, distance, spin, spinAxis, spinPhase = 1 } = def.explode
+    const { axis, distance, spin, spinAxis, spinPhase = 1, seat } = def.explode
 
     _axis.set(axis[0], axis[1], axis[2])
-    _explodePos.copy(basePos).addScaledVector(_axis, distance * p)
+    _explodePos.copy(basePos).addScaledVector(_axis, distance * seatedTravel(p, seat))
 
     easing.damp(inspect.current, 't', selected ? 1 : 0, 0.42, dt)
     if (!selected && inspect.current.t < 0.0005) inspect.current.t = 0

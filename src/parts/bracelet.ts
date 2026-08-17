@@ -316,8 +316,13 @@ export function buildClaspCoronet(): THREE.BufferGeometry {
  * Length is bounded by the bracelet's ARCH: the pin is straight and the link it sits
  * in curves away, so a pin spanning the full 20mm would surface through the flanks.
  */
-export function buildLinkPin(): THREE.BufferGeometry {
-  return cached('brc/linkPin', () => {
+/**
+ * `hand` is the direction the pin WITHDRAWS. The head goes on that end, so the
+ * thread is the end that leads going in — a screw does not enter head first, and
+ * with the head leading the whole insertion read backwards.
+ */
+export function buildLinkPin(hand: -1 | 1): THREE.BufferGeometry {
+  return cached(`brc/linkPin${hand}`, () => {
     const length = NOMINAL_WIDTH * 0.72
     const shaftRadius = 0.42
     const headRadius = 0.58
@@ -341,7 +346,7 @@ export function buildLinkPin(): THREE.BufferGeometry {
       curveSegments: 24,
     })
     head.rotateY(Math.PI / 2)
-    head.translate(-(length / 2 + headThickness / 2), 0, 0)
+    head.translate(hand * (length / 2 + headThickness / 2), 0, 0)
 
     /**
      * The thread, at the far end.
@@ -360,8 +365,8 @@ export function buildLinkPin(): THREE.BufferGeometry {
     }
     profile.push([0, turns * threadPitch])
     const thread = buildLathe(profile, { segments: 20, creaseAngle: Math.PI / 5 })
-    thread.rotateZ(-Math.PI / 2)
-    thread.translate(length / 2 - threadLength, 0, 0)
+    thread.rotateZ(hand * -Math.PI / 2)
+    thread.translate(-hand * (length / 2 - threadLength), 0, 0)
 
     const g = mergeAll([shaft, head, thread], 'linkPin')
     // The pin lives at the JOINT, not in the middle of the link it is instanced with.

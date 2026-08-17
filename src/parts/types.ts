@@ -31,6 +31,17 @@ export interface ExplodeSpec {
    * than drifting in while spinning.
    */
   spinPhase?: number
+  /**
+   * Splits the travel into a free approach and a slow seat, for a part that enters
+   * something rather than just moving away from it.
+   *
+   * `depth` is the fraction of `distance` spent inside — for a pin, its own length,
+   * from clear of the hole to fully home. `phase` is the fraction of the TIMELINE
+   * given to covering it. Set phase larger than depth and the part decelerates as it
+   * reaches the mouth, lines up, and pushes in slowly; each leg is eased separately,
+   * so the handover reads as a distinct beat rather than one continuous glide.
+   */
+  seat?: { depth: number; phase: number }
 }
 
 export interface InstanceSpec {

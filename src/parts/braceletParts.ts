@@ -125,8 +125,8 @@ const runParts: PartDef[] = SIDES.flatMap(({ key, side, axis, label }) => [
     id: `link-pins-${key}`,
     name: `Link Pins · ${label}`,
     group,
-    geometry: buildLinkPin,
-    material: 'steelPolished',
+    geometry: () => buildLinkPin(pinHand(side)),
+    material: 'steelPolished' as const,
     instances: runInstances(side),
     explode: {
       axis: ACROSS(pinHand(side)),
@@ -134,12 +134,21 @@ const runParts: PartDef[] = SIDES.flatMap(({ key, side, axis, label }) => [
       distance: 29,
       order: 0,
       // Applied per instance, so each pin turns about ITSELF rather than orbiting the
-      // assembly. Confined to the last fifth of the travel: closing the bracelet, the
-      // pin slides most of the way home dead straight and only threads over the final
-      // couple of millimetres, which is how it actually goes in.
-      spin: 1.25,
+      // assembly.
+      spin: 1.5,
       spinAxis: ACROSS(pinHand(side)),
-      spinPhase: 0.2,
+      /**
+       * Closing the bracelet, the pin runs in, settles at the mouth of its hole,
+       * pushes home over the second half of the timeline, and threads over the last
+       * 16%.
+       *
+       * The numbers are matched to the part, not picked: at the phase boundary the
+       * pin has travelled 14.5mm against its own 14.4mm length, so it settles exactly
+       * clear of the hole; and the threading covers 2.40mm against a 2.3mm thread, so
+       * it turns for precisely as long as the thread is engaged.
+       */
+      seat: { depth: 0.5, phase: 0.62 },
+      spinPhase: 0.16,
     },
     spec: {
       material: 'Stainless steel',

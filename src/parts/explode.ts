@@ -32,7 +32,9 @@ export function partProgress(def: PartDef, maxOrder: number): number {
 /** Drives the damped scalars. Mount once, ahead of the parts. */
 export function ExplodeDriver() {
   useFrame((_, dt) => {
-    easing.damp(explodeState, 't', useViewer.getState().explodeT, 0.24, dt)
+    // Slow. The pins now settle at their holes, push in and thread home over the last
+    // fifth of their travel, and at 0.24 that whole sequence went past in a blink.
+    easing.damp(explodeState, 't', useViewer.getState().explodeT, 0.62, dt)
   }, -1)
   return null
 }
