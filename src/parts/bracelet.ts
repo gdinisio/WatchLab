@@ -474,8 +474,14 @@ export function buildLinkPin(hand: -1 | 1): THREE.BufferGeometry {
     }
     profile.push([0, turns * threadPitch])
     const thread = buildLathe(profile, { segments: 20, creaseAngle: Math.PI / 5 })
-    thread.rotateZ(hand * -Math.PI / 2)
-    thread.translate(-hand * (length / 2 - threadLength), 0, 0)
+    thread.rotateZ((hand * -Math.PI) / 2)
+    // Right at the TIP. Offsetting by the thread's own length as well put it a
+    // thread's length inboard, so every pin ended in a plain stub sticking out past
+    // where the thread stopped — a screw with its business end sawn off and a smooth
+    // spigot left in front of it. Landing it on the tip is also what makes it engage:
+    // the far flank is 5.96mm thick at the bore and the thread is 4.8mm, so it takes
+    // hold across almost the whole of the piece it is screwing into.
+    thread.translate((-hand * length) / 2, 0, 0)
 
     const g = mergeAll([shaft, head, thread], 'linkPin')
     g.translate(...LINK_PIN_PIVOT)

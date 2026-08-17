@@ -273,7 +273,7 @@ export function buildMaterials(): MaterialLibrary {
     // Sapphire is optically flat and its Abbe number is high. ANY blur or colour
     // fringing here reads as fogged plastic rather than a watch crystal, and it is
     // the dial — the most detailed surface in the scene — that pays the price.
-    chromaticAberration: 0.004,
+    chromaticAberration: 0.0015,
     anisotropicBlur: 0,
     roughness: 0,
     // The transmission buffer is what the dial is actually SEEN THROUGH, so its
@@ -283,7 +283,9 @@ export function buildMaterials(): MaterialLibrary {
     resolution: 2048,
     backsideResolution: 1024,
     backside: true,
-    backsideThickness: 0.35,
+    // The backside pass refracts a second time, which is what makes the Cyclops
+    // magnify. Kept, but shallow: at 0.35 the doubling was smearing the minute track.
+    backsideThickness: 0.2,
     distortion: 0,
     temporalDistortion: 0,
     transmission: 1,
@@ -298,8 +300,8 @@ export function buildMaterials(): MaterialLibrary {
      * a broad white band — which is what an UNCOATED piece of sapphire really would
      * do, and precisely what the coating exists to prevent.
      */
-    specularIntensity: 0.22,
-    envMapIntensity: 0.5,
+    specularIntensity: 0.14,
+    envMapIntensity: 0.34,
   }
 
   return {

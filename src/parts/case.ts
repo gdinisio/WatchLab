@@ -328,11 +328,19 @@ function buildLug(): THREE.BufferGeometry {
      */
     const emerge = 1 - blend
     const shell = LUG.innerX + (outerAt(mid) - LUG.rootShell - LUG.innerX) * blend
-    // Never inside the bore. Near the waist this dominates; by the time the lug has
-    // run out past z = 11 or so the cylinder has fallen away behind it and the flat
-    // wall the end link sits against takes over.
+    /**
+     * Never inside the bore.
+     *
+     * MAX of the three, not min. Taking the smaller of `innerX` and the guard did the
+     * exact opposite of what it says: near the waist the guard is 15.2 and `innerX`
+     * is 10, so it chose 10 — a slab reaching to 5mm inside the bore, standing 1.5mm
+     * proud of a dial whose top is at 0.92 and sitting inside the bezel's inner edge,
+     * where nothing hides it. That is why the lugs were covering the dial. Past the
+     * bore the guard falls away behind the lug and the flat wall at `innerX`, which
+     * the end link sits against, takes over.
+     */
     const guard = Math.sqrt(Math.max(0, LUG.boreGuardRadius ** 2 - z * z))
-    const innerX = Math.max(shell, Math.min(LUG.innerX, guard))
+    const innerX = Math.max(shell, LUG.innerX, guard)
 
     // The tail-off: a quarter-circle collapse of the section over the last stretch,
     // so the loft closes on itself instead of needing an end cap.

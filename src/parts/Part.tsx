@@ -250,7 +250,7 @@ export function Part({ def, lib, maxOrder, simpleGlass = false }: PartProps) {
             specularIntensity={def.arCoated === false ? 0.85 : lib.sapphire.specularIntensity}
             // Only a whisper of the blue-violet coating flash at grazing angles.
             // Pushed higher it turns into a milky film across the whole dial.
-            iridescence={0.08}
+            iridescence={0.05}
             iridescenceIOR={1.3}
             iridescenceThicknessRange={[200, 340]}
             envMapIntensity={def.arCoated === false ? 1.3 : lib.sapphire.envMapIntensity}
