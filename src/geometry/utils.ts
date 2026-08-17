@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+import { Brush, Evaluator, SUBTRACTION } from 'three-bvh-csg'
 
 const cache = new Map<string, THREE.BufferGeometry>()
 
@@ -185,6 +186,36 @@ export function subdivide(g: THREE.BufferGeometry, levels = 1): THREE.BufferGeom
   }
 
   return work
+}
+
+let evaluator: Evaluator | null = null
+
+/**
+ * Cuts `tool` out of `solid`.
+ *
+ * The one operation the generators genuinely cannot fake. Everything else here is a
+ * lathe, a sweep or a displacement, all of which only ever ADD material — and a
+ * screw hole is a hole. An `ExtrudeGeometry` outline can carry holes, but only
+ * through its caps: the link pieces are swept along their length while the pin runs
+ * across the bracelet, so the bore is perpendicular to the only direction a hole
+ * could have been drawn in.
+ *
+ * Runs three times at load — once per unique link piece — and the results are cached
+ * with everything else, so the cost is a few milliseconds once.
+ *
+ * Both geometries must carry the SAME attributes; extrusions and lathes both give
+ * position/normal/uv, so in practice that is automatic. Crease AFTER cutting, so the
+ * bore wall comes out smooth and its rim comes out sharp.
+ */
+export function subtract(solid: THREE.BufferGeometry, tool: THREE.BufferGeometry): THREE.BufferGeometry {
+  evaluator ??= new Evaluator()
+  // One group, not one per operand: these parts are a single material.
+  evaluator.useGroups = false
+  const a = new Brush(solid)
+  const b = new Brush(tool)
+  a.updateMatrixWorld()
+  b.updateMatrixWorld()
+  return evaluator.evaluate(a, b, SUBTRACTION).geometry
 }
 
 /**

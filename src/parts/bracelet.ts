@@ -3,7 +3,7 @@ import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.j
 import { BRACELET, CASE } from '../config/datejust36'
 import { coronetShapes } from '../geometry/logoSvg'
 import { archAcrossX, flatExtrude, roundedRect, sectionExtrude, taperAlongZ } from '../geometry/shapes'
-import { cached, mergeAll, subdivide, type P2 } from '../geometry/utils'
+import { cached, mergeAll, subdivide, subtract, type P2 } from '../geometry/utils'
 import { buildLathe } from '../geometry/lathe'
 import { Y } from './layout'
 
@@ -99,10 +99,12 @@ export function buildLinkCentre(): THREE.BufferGeometry {
   return cached('brc/linkCentre', () => {
     const proud = BRACELET.link.centreProud
     return toCreasedNormals(
-      linkPiece(BRACELET.link.centre, 0, {
-        thickness: BRACELET.linkThickness + proud,
-        yOffset: proud / 2,
-      }),
+      borePin(
+        linkPiece(BRACELET.link.centre, 0, {
+          thickness: BRACELET.linkThickness + proud,
+          yOffset: proud / 2,
+        }),
+      ),
       Math.PI / 5,
     )
   })
@@ -120,7 +122,7 @@ export function buildLinkCentre(): THREE.BufferGeometry {
 export function buildLinkFlank(hand: -1 | 1): THREE.BufferGeometry {
   return cached(`brc/linkFlank${hand}`, () => {
     const { flank, flankOffset } = BRACELET.link
-    return toCreasedNormals(linkPiece(flank, hand * flankOffset), Math.PI / 5)
+    return toCreasedNormals(borePin(linkPiece(flank, hand * flankOffset)), Math.PI / 5)
   })
 }
 
@@ -307,17 +309,60 @@ export function buildClaspCoronet(): THREE.BufferGeometry {
 /**
  * Where the pin's own axis lies inside the link it is instanced with.
  *
- * The pin sits at the JOINT rather than the middle of the link, and BELOW the
- * mid-plane: the link arches away by 0.77mm at the flank's edge while the pin stays
- * dead straight, so an axis at y=0 rides high at the ends and the head breaks the
- * surface. Half the arch splits the error between centre and edge.
+ * INSET FROM THE END, not on the seam. At z = -linkLength/2 the pin sat exactly on
+ * the joint and ran through both neighbours at once, so the head straddled a gap
+ * with no metal of its own to sit in. A millimetre in from the end face leaves 0.4mm
+ * of link beyond the hole's rim and 0.29mm beyond the head's, which reads as a screw
+ * seated in its own boss rather than one wedged into a crack.
  *
- * Exported because the explode system needs THE SAME LINE to turn the pin about.
- * Spinning it about the instance origin instead swings it round a 2.58mm circle,
- * 5.2mm peak to peak — which is exactly what "the screws all move in one big motion"
- * looked like.
+ * BELOW the mid-plane, because the link arches away by 0.77mm at the flank's edge
+ * while the pin stays dead straight: an axis at y = 0 rides high at the ends and the
+ * head breaks the surface. Half the arch splits the error between centre and edge,
+ * and leaves at least 0.385mm of metal all round the bore at every point along it.
+ *
+ * Exported because two other things need THE SAME LINE: the bore cut through the
+ * links, and the axis the explode system turns the pin about. Spinning it about the
+ * instance origin instead swings it round a circle the size of this offset — which
+ * is exactly what "the screws all move in one big motion" looked like.
  */
-export const LINK_PIN_PIVOT = [0, -0.42, -BRACELET.linkLength / 2] as const
+export const LINK_PIN_PIVOT = [0, -0.42, -BRACELET.linkLength / 2 + 1.1] as const
+
+/** Bore radius. 0.08mm of clearance around the 0.42mm shaft, so it is a hole, not a press fit. */
+const PIN_BORE_RADIUS = 0.5
+
+/**
+ * Cuts the pin's hole through a link piece, chamfering both mouths.
+ *
+ * The tool is a lathe rather than a plain cylinder so it can step OUT to
+ * `radius + chamfer` beyond each face of the piece: that flare cuts a 45-degree
+ * mouth at the rim, which is the only reason the hole catches any light at all. A
+ * bore with a true 90-degree lip reads as a black dot painted on the metal — the
+ * same rule as every other edge on the watch, and it matters more here because the
+ * hole is barely a millimetre across.
+ *
+ * The faces are taken from the piece's own bounding box, so a flank and a centre
+ * each get their chamfers in the right places without being told where they are.
+ */
+function borePin(g: THREE.BufferGeometry): THREE.BufferGeometry {
+  g.computeBoundingBox()
+  const { min, max } = g.boundingBox!
+  const r = PIN_BORE_RADIUS
+  const c = 0.07
+  const profile: P2[] = [
+    [0, min.x - 0.5],
+    [r + c, min.x - 0.5],
+    [r + c, min.x],
+    [r, min.x + c],
+    [r, max.x - c],
+    [r + c, max.x],
+    [r + c, max.x + 0.5],
+    [0, max.x + 0.5],
+  ]
+  const tool = buildLathe(profile, { segments: 28, chamfer: 0 })
+  tool.rotateZ(-Math.PI / 2)
+  tool.translate(0, LINK_PIN_PIVOT[1], LINK_PIN_PIVOT[2])
+  return subtract(g, tool)
+}
 
 /**
  * A screwed link pin: a shaft with a slotted head at one end and a thread at the
