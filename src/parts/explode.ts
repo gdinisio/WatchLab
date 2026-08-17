@@ -25,8 +25,9 @@ function easeOutBack(t: number, overshoot = 1.15) {
 }
 
 export function partProgress(def: PartDef, maxOrder: number): number {
-  const start = (def.explode.order / (maxOrder + 1)) * (1 - WINDOW)
-  const local = clamp01((explodeState.t - start) / WINDOW)
+  const cascade = (def.explode.order / (maxOrder + 1)) * (1 - WINDOW)
+  const [start, end] = def.explode.span ?? [cascade, cascade + WINDOW]
+  const local = clamp01((explodeState.t - start) / (end - start))
   /**
    * A part with its own travel shaping supplies its own easing.
    *

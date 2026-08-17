@@ -43,6 +43,41 @@ const LIFT = [0, 1, 0] as const
 /** Pins withdraw to the side the watch's own run leans toward, so the ranks do not stack. */
 const pinHand = (side: 1 | -1): -1 | 1 => (side === 1 ? 1 : -1)
 
+/**
+ * The bracelet is taken apart as a SEQUENCE, not as part of the shared cascade.
+ *
+ * Read the slider backwards, the way it is actually assembled: the links close up
+ * and settle first; then, with the bracelet completely still, the pins fly in, stop
+ * at the mouths of their holes, push home and thread the last few millimetres. That
+ * beat of stillness is the whole point — a screw going into a joint that is still
+ * moving reads as debris drifting past, not as assembly.
+ *
+ * The cascade cannot say this. Its windows are 0.55 of the timeline and consecutive
+ * orders are only 0.041 apart, so every bracelet part is always moving at once. The
+ * gap at 0.24-0.28 is the pause; the small offsets between the three link parts keep
+ * them flowing rather than snapping as a slab.
+ */
+const PIN_SPAN = [0, 0.42] as const
+const FLANK_SPAN = [0.46, 0.72] as const
+const CENTRE_SPAN = [0.49, 0.76] as const
+const END_LINK_SPAN = [0.53, 0.82] as const
+
+/**
+ * The pin's own three beats, measured off the part.
+ *
+ * `of` is the share of the 29mm travel, `over` the share of the pin's timeline.
+ * Read outward from seated: it threads for 4.81mm — the exact length of the thread
+ * cut on it — then pushes 14.67mm to the mouth of its hole, then flies the last
+ * 9.51mm clear. Splitting distance from time is what makes the threading legible:
+ * it is a sixth of the journey but a third of the clock, so the screw turns at half
+ * speed while the rest of the trip runs at a comfortable pace.
+ */
+const PIN_LEGS = [
+  { of: 0.166, over: 0.34 },
+  { of: 0.506, over: 0.40 },
+  { of: 0.328, over: 0.26 },
+] as const
+
 const endLinkInstance = (side: 1 | -1) => ({
   count: 1,
   transform: () =>
@@ -64,7 +99,7 @@ const runParts: PartDef[] = SIDES.flatMap(({ key, side, axis, label }) => [
     material: 'steelPolished',
     geometry: buildEndLinkCentre,
     instances: endLinkInstance(side),
-    explode: { axis, distance: 15, order: 3 },
+    explode: { axis, distance: 15, order: 3, span: END_LINK_SPAN },
     spec: {
       material: '904L Oystersteel',
       function: 'Polished centre of the solid end link, carrying the bracelet’s centre stripe out of the case.',
@@ -80,7 +115,7 @@ const runParts: PartDef[] = SIDES.flatMap(({ key, side, axis, label }) => [
     geometry: buildEndLinkFlanks,
     material: 'steelBrushed',
     instances: endLinkInstance(side),
-    explode: { axis, distance: 21, order: 3 },
+    explode: { axis, distance: 21, order: 3, span: END_LINK_SPAN },
     spec: {
       material: '904L Oystersteel',
       function: 'Satin horns of the end link, cut to the case’s circumference so they close the gap between the lugs.',
@@ -97,7 +132,7 @@ const runParts: PartDef[] = SIDES.flatMap(({ key, side, axis, label }) => [
     // the bracelet read as the wrong watch entirely.
     material: 'steelPolished',
     instances: runInstances(side),
-    explode: { axis: LIFT, distance: 11, order: 2 },
+    explode: { axis: LIFT, distance: 11, order: 2, span: CENTRE_SPAN },
     spec: {
       material: '904L Oystersteel',
       function: 'The broad polished centre section of each three-piece Oyster link.',
@@ -113,7 +148,7 @@ const runParts: PartDef[] = SIDES.flatMap(({ key, side, axis, label }) => [
     geometry: () => buildLinkFlank(hand),
     material: 'steelBrushed' as const,
     instances: runInstances(side),
-    explode: { axis: ACROSS(hand), distance: 15, order: 1 },
+    explode: { axis: ACROSS(hand), distance: 15, order: 1, span: FLANK_SPAN },
     spec: {
       material: '904L Oystersteel',
       function: 'The satin outer section beside the centre link — the contrast that defines an Oyster bracelet.',
@@ -133,6 +168,7 @@ const runParts: PartDef[] = SIDES.flatMap(({ key, side, axis, label }) => [
       // Out past the flank on that side, so the rods park clear of everything else.
       distance: 29,
       order: 0,
+      span: PIN_SPAN,
       spin: 2.5,
       spinAxis: ACROSS(pinHand(side)),
       /**
@@ -145,25 +181,18 @@ const runParts: PartDef[] = SIDES.flatMap(({ key, side, axis, label }) => [
       spinPivot: LINK_PIN_PIVOT,
       /**
        * Closing the bracelet, the pin flies in, settles at the mouth of its hole,
-       * pushes home slowly, then threads over the last stretch.
+       * pushes home, and threads the last few millimetres.
        *
-       * Every number is measured off the part rather than picked. `depth` 0.672 is
-       * 19.49mm of 29 — exactly the travel that brings the pin's trailing tip level
-       * with the flank's outer face, so the settle happens AT the mouth. Giving that
-       * leg 0.8 of the timeline makes it the slow one (0.84x against 1.64x for the
-       * free flight outside), which is the right way round: the part dawdles where
-       * it is engaged and hurries where it is not.
-       *
-       * `spinPhase` 0.26 is where the pin has moved 4.84mm, against a 4.8mm thread —
-       * so it turns for as long as the thread is engaged and no longer, and the
-       * remaining 14.65mm is a straight push.
+       * The turning is tied to the first leg rather than given its own number, so the
+       * pin cannot turn for longer or shorter than its thread is engaged however the
+       * beats are retimed later.
        *
        * These are fractions of the RAW cascade parameter: parts carrying a `seat`
        * skip `easeOutBack`, which would otherwise squash the lot into the first few
        * percent of the slider.
        */
-      seat: { depth: 0.672, phase: 0.8 },
-      spinPhase: 0.26,
+      seat: PIN_LEGS,
+      spinPhase: PIN_LEGS[0].over,
     },
     spec: {
       material: 'Stainless steel',

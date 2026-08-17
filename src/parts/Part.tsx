@@ -7,7 +7,7 @@ import type { MaterialLibrary } from '../materials/library'
 import { useViewer } from '../state/store'
 import { partProgress } from './explode'
 import { INSPECT_POSITION, INSPECT_SPIN_SPEED, smoothstep } from './inspect'
-import type { PartDef } from './types'
+import type { PartDef, SeatLeg } from './types'
 
 const _axis = new THREE.Vector3()
 const _spinAxis = new THREE.Vector3()
@@ -24,20 +24,25 @@ const _pivotSpun = new THREE.Vector3()
 const TAU = Math.PI * 2
 
 /**
- * Maps cascade progress to distance travelled, in two eased legs.
+ * Maps cascade progress to distance travelled, one eased leg at a time.
  *
  * Without a `seat` this is the identity — the part just slides. With one, the travel
- * is split at the mouth of whatever it enters: a long free approach, then a short
- * slow push. Easing each leg separately means both END at zero velocity, so the part
- * visibly settles at the mouth, lines up, and only then goes in.
+ * is broken into beats that each own a share of the distance and a separate share of
+ * the time, so a leg can be deliberately slow without being short. Easing every leg
+ * on its own means each ENDS at zero velocity, so the part visibly settles at the
+ * mouth of whatever it is entering, lines up, and only then goes in.
  */
-function seatedTravel(p: number, seat?: { depth: number; phase: number }): number {
-  if (!seat || p <= 0 || p >= 1) return p
-  const { depth, phase } = seat
+function seatedTravel(p: number, legs?: readonly SeatLeg[]): number {
+  if (!legs || legs.length === 0 || p <= 0 || p >= 1) return p
   const ease = (t: number) => t * t * (3 - 2 * t)
-  return p < phase
-    ? ease(p / phase) * depth
-    : depth + ease((p - phase) / (1 - phase)) * (1 - depth)
+  let elapsed = 0
+  let covered = 0
+  for (const leg of legs) {
+    if (p < elapsed + leg.over) return covered + ease((p - elapsed) / leg.over) * leg.of
+    elapsed += leg.over
+    covered += leg.of
+  }
+  return covered
 }
 
 export interface PartProps {

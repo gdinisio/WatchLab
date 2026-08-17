@@ -341,6 +341,7 @@ export function buildLinkPin(hand: -1 | 1): THREE.BufferGeometry {
   return cached(`brc/linkPin${hand}`, () => {
     /**
      * Sized so the HEAD lands 0.06mm proud of the flank's outer face, at x = 9.94.
+     * The head butts onto the shaft's end, so the shaft length sets both.
      *
      * At 0.72 of the bracelet's width the head sat 2.4mm inside the metal — and the
      * head carries the slot, which is the only thing on a pin that shows it turning.
@@ -350,12 +351,13 @@ export function buildLinkPin(hand: -1 | 1): THREE.BufferGeometry {
      * than dead flush: two faces a hundredth of a millimetre apart z-fight, and the
      * standing rim is what a screw head looks like anyway.
      *
-     * The far end stops 0.39mm short of the opposite face, so the pin is a head on
+     * The far end stops 0.34mm short of the opposite face, so the pin is a head on
      * one side and buried thread on the other, the way it actually goes together.
      */
-    const length = 19.1
+    const length = 19.2
     const shaftRadius = 0.42
-    const headRadius = 0.5
+    // 1.24mm across. At 1.0 the slot was too fine to read at any sane viewing size.
+    const headRadius = 0.62
     const headThickness = 0.4
     const threadLength = 4.8
     const threadDepth = 0.12
@@ -364,19 +366,51 @@ export function buildLinkPin(hand: -1 | 1): THREE.BufferGeometry {
     const shaft = new THREE.CylinderGeometry(shaftRadius, shaftRadius, length, 20)
     shaft.rotateZ(Math.PI / 2)
 
-    // Slotted head, one end only. The slot is what makes the rotation visible; a
-    // plain cylinder is symmetric about its own axis and unscrewing it shows nothing.
-    const face = new THREE.Shape()
-    face.absarc(0, 0, headRadius, 0, Math.PI * 2, false)
-    face.holes.push(roundedRect(0.2, shaftRadius * 1.9, 0.05))
-    const head = sectionExtrude(face, {
-      depth: headThickness,
-      bevel: 0.05,
-      bevelSegments: 2,
-      curveSegments: 24,
+    /**
+     * A flat head with the driver slot cut clean across it, rim to rim.
+     *
+     * Built as a base disc carrying two circular-segment LANDS, not as a disc with a
+     * slot-shaped hole in it. An `ExtrudeGeometry` hole may not touch its own outline,
+     * so a slot cut that way has to stop short of the rim and leaves a bar of metal
+     * across each end — the screw reads as a button with a dash printed on it rather
+     * than as something a driver could turn. Two lands set apart by the slot width
+     * leave the base disc showing as the groove floor, and the groove runs off both
+     * edges the way a real slot does.
+     *
+     * The slot is also the only feature on a pin that shows it turning: a plain
+     * cylinder is symmetric about its own axis, and unscrewing one shows nothing.
+     */
+    const slotWidth = 0.18
+    const slotDepth = 0.17
+    const bevel = 0.025
+    const baseDepth = headThickness - slotDepth
+
+    const disc = new THREE.Shape()
+    disc.absarc(0, 0, headRadius, 0, Math.PI * 2, false)
+    const base = sectionExtrude(disc, { depth: baseDepth, bevel, bevelSegments: 2, curveSegments: 32 })
+    // The base's outer face IS the floor of the slot.
+    base.translate(0, 0, -slotDepth - (baseDepth / 2 + bevel))
+
+    // Half the slot width is the chord's offset from centre; each land is the piece
+    // of the disc beyond that chord.
+    const chord = Math.asin(Math.min(1, slotWidth / 2 / headRadius))
+    const lands = ([
+      [chord, Math.PI - chord],
+      [Math.PI + chord, 2 * Math.PI - chord],
+    ] as const).map(([from, to]) => {
+      const seg = new THREE.Shape()
+      seg.absarc(0, 0, headRadius, from, to, false)
+      seg.closePath()
+      const g = sectionExtrude(seg, { depth: slotDepth, bevel, bevelSegments: 2, curveSegments: 24 })
+      g.translate(0, 0, -(slotDepth / 2 + bevel))
+      return g
     })
-    head.rotateY(Math.PI / 2)
-    head.translate(hand * (length / 2 + headThickness / 2), 0, 0)
+
+    // Assembled with its outer face on z = 0, so the quarter turn lands that face at
+    // the end of the shaft and the head butts onto it instead of floating past.
+    const head = mergeAll([base, ...lands], 'pinHead')
+    head.rotateY((hand * Math.PI) / 2)
+    head.translate(hand * (length / 2 + headThickness), 0, 0)
 
     /**
      * The thread, at the far end.

@@ -11,12 +11,29 @@ export interface PartSpec {
   finish?: string
 }
 
+/** One beat of a part's travel: `of` the distance, `over` that share of the time. */
+export interface SeatLeg {
+  of: number
+  over: number
+}
+
 export interface ExplodeSpec {
   /** Unit direction the part travels when the assembly opens. */
   axis: readonly [number, number, number]
   distance: number
   /** Cascade position. Lower orders leave first. */
   order: number
+  /**
+   * Explicit slider interval this part moves over, overriding the order cascade.
+   *
+   * The cascade's windows overlap heavily on purpose — that is what makes eighty
+   * parts read as one mechanism opening rather than a queue. But some choreography
+   * is a SEQUENCE, not a cascade: a screw cannot back out of a joint that is coming
+   * apart around it at the same moment. Where one thing genuinely has to finish
+   * before the next starts, say so here rather than trying to express it as an
+   * order, which cannot separate two parts by more than a fraction of a window.
+   */
+  span?: readonly [number, number]
   /** Full turns the part rotates about its own axis on the way out (screws unscrew). */
   spin?: number
   /** Local axis the spin is about. Defaults to the travel axis. */
@@ -45,16 +62,17 @@ export interface ExplodeSpec {
    */
   spinPhase?: number
   /**
-   * Splits the travel into a free approach and a slow seat, for a part that enters
-   * something rather than just moving away from it.
+   * Breaks the travel into named beats, for a part that enters something rather than
+   * simply moving away from it.
    *
-   * `depth` is the fraction of `distance` spent inside — for a pin, its own length,
-   * from clear of the hole to fully home. `phase` is the fraction of the TIMELINE
-   * given to covering it. Set phase larger than depth and the part decelerates as it
-   * reaches the mouth, lines up, and pushes in slowly; each leg is eased separately,
-   * so the handover reads as a distinct beat rather than one continuous glide.
+   * Each leg gives `of`, its share of `distance`, and `over`, its share of the
+   * TIMELINE; both lists run from SEATED outward and each must sum to 1. Splitting
+   * distance from time is the whole point — a screw covers the last few millimetres
+   * of its travel over a third of its timeline, and no single easing curve says that.
+   * Every leg is eased separately, so each handover lands at zero velocity and reads
+   * as a distinct beat: fly in, stop at the mouth, push home, thread.
    */
-  seat?: { depth: number; phase: number }
+  seat?: readonly SeatLeg[]
 }
 
 export interface InstanceSpec {
