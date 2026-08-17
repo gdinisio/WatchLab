@@ -1,8 +1,8 @@
 import * as THREE from 'three'
 import { AXIS, BRACELET, CASE } from '../config/datejust36'
 import {
-  END_LINK_Z, braceletPlacements, buildClaspCentre, buildClaspCoronet, buildClaspCover, buildEndLinkCentre,
-  buildEndLinkFlanks, buildLinkCentre, buildLinkFlank, buildLinkPin, claspTransform,
+  END_LINK_Z, LINK_PIN_PIVOT, braceletPlacements, buildClaspCentre, buildClaspCoronet, buildClaspCover,
+  buildEndLinkCentre, buildEndLinkFlanks, buildLinkCentre, buildLinkFlank, buildLinkPin, claspTransform,
 } from './bracelet'
 import { Y } from './layout'
 import type { PartDef, PartGroup } from './types'
@@ -133,22 +133,37 @@ const runParts: PartDef[] = SIDES.flatMap(({ key, side, axis, label }) => [
       // Out past the flank on that side, so the rods park clear of everything else.
       distance: 29,
       order: 0,
-      // Applied per instance, so each pin turns about ITSELF rather than orbiting the
-      // assembly.
-      spin: 1.5,
+      spin: 2.5,
       spinAxis: ACROSS(pinHand(side)),
       /**
-       * Closing the bracelet, the pin runs in, settles at the mouth of its hole,
-       * pushes home over the second half of the timeline, and threads over the last
-       * 16%.
+       * The line the pin turns about — its own, not its link's.
        *
-       * The numbers are matched to the part, not picked: at the phase boundary the
-       * pin has travelled 14.5mm against its own 14.4mm length, so it settles exactly
-       * clear of the hole; and the threading covers 2.40mm against a 2.3mm thread, so
-       * it turns for precisely as long as the thread is engaged.
+       * Without this the rotation is taken about the instance origin, 2.58mm away,
+       * and 2.5 turns swing each pin through a 5.2mm arc. That is the "one big
+       * motion": the pins were orbiting, not screwing.
        */
-      seat: { depth: 0.5, phase: 0.62 },
-      spinPhase: 0.16,
+      spinPivot: LINK_PIN_PIVOT,
+      /**
+       * Closing the bracelet, the pin flies in, settles at the mouth of its hole,
+       * pushes home slowly, then threads over the last stretch.
+       *
+       * Every number is measured off the part rather than picked. `depth` 0.672 is
+       * 19.49mm of 29 — exactly the travel that brings the pin's trailing tip level
+       * with the flank's outer face, so the settle happens AT the mouth. Giving that
+       * leg 0.8 of the timeline makes it the slow one (0.84x against 1.64x for the
+       * free flight outside), which is the right way round: the part dawdles where
+       * it is engaged and hurries where it is not.
+       *
+       * `spinPhase` 0.26 is where the pin has moved 4.84mm, against a 4.8mm thread —
+       * so it turns for as long as the thread is engaged and no longer, and the
+       * remaining 14.65mm is a straight push.
+       *
+       * These are fractions of the RAW cascade parameter: parts carrying a `seat`
+       * skip `easeOutBack`, which would otherwise squash the lot into the first few
+       * percent of the slider.
+       */
+      seat: { depth: 0.672, phase: 0.8 },
+      spinPhase: 0.26,
     },
     spec: {
       material: 'Stainless steel',

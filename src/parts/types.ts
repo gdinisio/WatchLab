@@ -22,6 +22,19 @@ export interface ExplodeSpec {
   /** Local axis the spin is about. Defaults to the travel axis. */
   spinAxis?: readonly [number, number, number]
   /**
+   * A point ON the part's own axis, in its local frame. Defaults to the origin.
+   *
+   * "About its own axis" is only free when the geometry is BUILT about that axis. A
+   * part modelled off its origin — an instanced pin sitting at the joint rather than
+   * the middle of its link — is otherwise swung around a circle the size of that
+   * offset instead of turning in place, which reads as the whole rank flailing.
+   *
+   * Deliberately explicit rather than derived from the bounding box: the rotor's box
+   * centre is 4.4mm off its bearing, because it is a half-moon, and it genuinely does
+   * turn about the origin.
+   */
+  spinPivot?: readonly [number, number, number]
+  /**
    * Fraction of the travel, measured from SEATED, over which the spin happens.
    *
    * 1 spreads the rotation across the whole journey, which is how nothing is

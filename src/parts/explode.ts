@@ -26,7 +26,17 @@ function easeOutBack(t: number, overshoot = 1.15) {
 
 export function partProgress(def: PartDef, maxOrder: number): number {
   const start = (def.explode.order / (maxOrder + 1)) * (1 - WINDOW)
-  return easeOutBack(clamp01((explodeState.t - start) / WINDOW))
+  const local = clamp01((explodeState.t - start) / WINDOW)
+  /**
+   * A part with its own travel shaping supplies its own easing.
+   *
+   * `easeOutBack` front-loads hard — a fifth of the way along the slider it is
+   * already nine tenths done. Running it FIRST and then splitting the result into
+   * phases compressed those phases into the opening moments: a pin whose thread
+   * turned over the first 16% of `p` was finished by 3% of the slider, so the whole
+   * screwing motion happened in a blink nobody could see.
+   */
+  return def.explode.seat ? local : easeOutBack(local)
 }
 
 /** Drives the damped scalars. Mount once, ahead of the parts. */

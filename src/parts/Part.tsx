@@ -17,7 +17,10 @@ const _euler = new THREE.Euler()
 const _explodePos = new THREE.Vector3()
 const _up = new THREE.Vector3(0, 1, 0)
 const _instanceQuat = new THREE.Quaternion()
+const _instancePos = new THREE.Vector3()
 const _instanceMatrix = new THREE.Matrix4()
+const _pivot = new THREE.Vector3()
+const _pivotSpun = new THREE.Vector3()
 const TAU = Math.PI * 2
 
 /**
@@ -76,12 +79,18 @@ export function Part({ def, lib, maxOrder, simpleGlass = false }: PartProps) {
    */
   const instanceRest = useMemo(() => {
     if (!def.instances) return null
+    const sp = def.explode.spinPivot
     return Array.from({ length: def.instances.count }, (_, i) => {
       const position = new THREE.Vector3()
       const quaternion = new THREE.Quaternion()
       const scale = new THREE.Vector3()
       def.instances!.transform(i).decompose(position, quaternion, scale)
-      return { position, quaternion, scale }
+      // Vector from the instance's origin to a point on the part's OWN axis, taken
+      // into the group's frame — all the spin needs to turn the part in place.
+      const pivot = sp
+        ? new THREE.Vector3(sp[0] * scale.x, sp[1] * scale.y, sp[2] * scale.z).applyQuaternion(quaternion)
+        : null
+      return { position, quaternion, scale, pivot }
     })
   }, [def])
 
@@ -102,14 +111,47 @@ export function Part({ def, lib, maxOrder, simpleGlass = false }: PartProps) {
    */
   const inspect = useRef({ t: 0, angle: 0 })
 
+  const spinPivot = useMemo(() => {
+    const sp = def.explode.spinPivot
+    return sp && (sp[0] || sp[1] || sp[2]) ? new THREE.Vector3(sp[0], sp[1], sp[2]) : null
+  }, [def])
+
   useFrame((_state, dt) => {
     const g = group.current
     if (!g) return
     const p = partProgress(def, maxOrder)
     const { axis, distance, spin, spinAxis, spinPhase = 1, seat } = def.explode
 
+    // Rotation is complete once the part is `spinPhase` of the way out, and frozen
+    // beyond that — so on the way back in it travels unturned and threads home over
+    // the last stretch. Resolved ahead of the position because a part whose axis
+    // misses its origin has to be carried as it turns; see below.
+    const spinAngle = spin ? spin * TAU * Math.min(1, p / spinPhase) : 0
+    if (spin) {
+      const sa = spinAxis ?? axis
+      _spinAxis.set(sa[0], sa[1], sa[2]).normalize()
+      _q.setFromAxisAngle(_spinAxis, spinAngle)
+    }
+
     _axis.set(axis[0], axis[1], axis[2])
     _explodePos.copy(basePos).addScaledVector(_axis, distance * seatedTravel(p, seat))
+    /**
+     * Rotating about a line that misses the origin is a rotation PLUS a translation.
+     *
+     * `d - Q*d` is that translation: it holds the axis line still while the body turns
+     * around it. Without it the part is swung round a circle the size of its offset
+     * instead of spinning in place — the bracelet pins sit 2.58mm off their instance
+     * origin, so two and a half turns threw each one through a 5.2mm arc and the whole
+     * rank read as flailing rather than unscrewing.
+     *
+     * Instanced parts take this per copy instead, further down: their group never
+     * turns, so correcting it here as well would shift the whole rank bodily.
+     */
+    if (spin && spinPivot && !instanceRest) {
+      _pivot.copy(spinPivot).applyQuaternion(baseQuat)
+      _pivotSpun.copy(_pivot).applyQuaternion(_q)
+      _explodePos.add(_pivot).sub(_pivotSpun)
+    }
 
     easing.damp(inspect.current, 't', selected ? 1 : 0, 0.42, dt)
     if (!selected && inspect.current.t < 0.0005) inspect.current.t = 0
@@ -142,27 +184,25 @@ export function Part({ def, lib, maxOrder, simpleGlass = false }: PartProps) {
     // Always written, never conditionally skipped: leaving the last frame's value in
     // place is exactly how the residual rotation got stranded in the first place.
     _base.copy(baseQuat)
-    // Rotation is complete once the part is `spinPhase` of the way out, and frozen
-    // beyond that — so on the way back in it travels unturned and threads home over
-    // the last stretch.
-    const spinAngle = spin ? spin * TAU * Math.min(1, p / spinPhase) : 0
     if (spin) {
-      const sa = spinAxis ?? axis
-      _spinAxis.set(sa[0], sa[1], sa[2]).normalize()
       if (instanceRest) {
         if (instanced.current && spinAngle !== lastSpin.current) {
-          _q.setFromAxisAngle(_spinAxis, spinAngle)
           for (let i = 0; i < instanceRest.length; i++) {
             const rest = instanceRest[i]
             _instanceQuat.copy(_q).multiply(rest.quaternion)
-            _instanceMatrix.compose(rest.position, _instanceQuat, rest.scale)
+            _instancePos.copy(rest.position)
+            // Same correction as above, but per copy: each pin holds its own axis.
+            if (rest.pivot) {
+              _pivotSpun.copy(rest.pivot).applyQuaternion(_q)
+              _instancePos.add(rest.pivot).sub(_pivotSpun)
+            }
+            _instanceMatrix.compose(_instancePos, _instanceQuat, rest.scale)
             instanced.current.setMatrixAt(i, _instanceMatrix)
           }
           instanced.current.instanceMatrix.needsUpdate = true
           lastSpin.current = spinAngle
         }
       } else {
-        _q.setFromAxisAngle(_spinAxis, spinAngle)
         _base.premultiply(_q)
       }
     }

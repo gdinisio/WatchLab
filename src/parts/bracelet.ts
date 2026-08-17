@@ -305,7 +305,23 @@ export function buildClaspCoronet(): THREE.BufferGeometry {
 }
 
 /**
- * A screwed link pin: a shaft with a slotted head at each end.
+ * Where the pin's own axis lies inside the link it is instanced with.
+ *
+ * The pin sits at the JOINT rather than the middle of the link, and BELOW the
+ * mid-plane: the link arches away by 0.77mm at the flank's edge while the pin stays
+ * dead straight, so an axis at y=0 rides high at the ends and the head breaks the
+ * surface. Half the arch splits the error between centre and edge.
+ *
+ * Exported because the explode system needs THE SAME LINE to turn the pin about.
+ * Spinning it about the instance origin instead swings it round a 2.58mm circle,
+ * 5.2mm peak to peak — which is exactly what "the screws all move in one big motion"
+ * looked like.
+ */
+export const LINK_PIN_PIVOT = [0, -0.42, -BRACELET.linkLength / 2] as const
+
+/**
+ * A screwed link pin: a shaft with a slotted head at one end and a thread at the
+ * other, exactly as an Oyster's screw pin is made.
  *
  * The SLOT is not decoration. A plain cylinder is rotationally symmetric about its
  * own axis, so unscrewing it as it leaves the assembly is completely invisible — the
@@ -323,13 +339,27 @@ export function buildClaspCoronet(): THREE.BufferGeometry {
  */
 export function buildLinkPin(hand: -1 | 1): THREE.BufferGeometry {
   return cached(`brc/linkPin${hand}`, () => {
-    const length = NOMINAL_WIDTH * 0.72
+    /**
+     * Sized so the HEAD lands 0.06mm proud of the flank's outer face, at x = 9.94.
+     *
+     * At 0.72 of the bracelet's width the head sat 2.4mm inside the metal — and the
+     * head carries the slot, which is the only thing on a pin that shows it turning.
+     * The screwing was therefore happening entirely out of sight. Flush, the slot
+     * reads as the dark cross-cut you see along a real Oyster's edge, and a fraction
+     * of a millimetre of withdrawal brings the whole head into the open. Proud rather
+     * than dead flush: two faces a hundredth of a millimetre apart z-fight, and the
+     * standing rim is what a screw head looks like anyway.
+     *
+     * The far end stops 0.39mm short of the opposite face, so the pin is a head on
+     * one side and buried thread on the other, the way it actually goes together.
+     */
+    const length = 19.1
     const shaftRadius = 0.42
-    const headRadius = 0.58
+    const headRadius = 0.5
     const headThickness = 0.4
-    const threadLength = 2.3
+    const threadLength = 4.8
     const threadDepth = 0.12
-    const threadPitch = 0.28
+    const threadPitch = 0.34
 
     const shaft = new THREE.CylinderGeometry(shaftRadius, shaftRadius, length, 20)
     shaft.rotateZ(Math.PI / 2)
@@ -338,7 +368,7 @@ export function buildLinkPin(hand: -1 | 1): THREE.BufferGeometry {
     // plain cylinder is symmetric about its own axis and unscrewing it shows nothing.
     const face = new THREE.Shape()
     face.absarc(0, 0, headRadius, 0, Math.PI * 2, false)
-    face.holes.push(roundedRect(0.17, shaftRadius * 1.85, 0.05))
+    face.holes.push(roundedRect(0.2, shaftRadius * 1.9, 0.05))
     const head = sectionExtrude(face, {
       depth: headThickness,
       bevel: 0.05,
@@ -369,8 +399,7 @@ export function buildLinkPin(hand: -1 | 1): THREE.BufferGeometry {
     thread.translate(-hand * (length / 2 - threadLength), 0, 0)
 
     const g = mergeAll([shaft, head, thread], 'linkPin')
-    // The pin lives at the JOINT, not in the middle of the link it is instanced with.
-    g.translate(0, 0, -BRACELET.linkLength / 2)
+    g.translate(...LINK_PIN_PIVOT)
     return toCreasedNormals(g, Math.PI / 5)
   })
 }
