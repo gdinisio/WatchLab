@@ -39,6 +39,18 @@ export interface ExplodeSpec {
   /** Local axis the spin is about. Defaults to the travel axis. */
   spinAxis?: readonly [number, number, number]
   /**
+   * Spreads an instanced part's travel down its copies, as a fraction of the window.
+   *
+   * Without it every copy moves in lockstep, which is how nothing is ever assembled:
+   * twelve screws do not go into a bracelet simultaneously, they go in one after
+   * another. Each instance gets its own progress, so travel AND rotation are driven
+   * per copy and the rank ripples instead of sliding as a slab.
+   *
+   * Only meaningful on an instanced part; the group then stays at rest and the
+   * transform is carried entirely by the instance matrices.
+   */
+  stagger?: number
+  /**
    * A point ON the part's own axis, in its local frame. Defaults to the origin.
    *
    * "About its own axis" is only free when the geometry is BUILT about that axis. A

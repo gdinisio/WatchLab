@@ -315,17 +315,37 @@ export function buildClaspCoronet(): THREE.BufferGeometry {
  * of link beyond the hole's rim and 0.29mm beyond the head's, which reads as a screw
  * seated in its own boss rather than one wedged into a crack.
  *
- * BELOW the mid-plane, because the link arches away by 0.77mm at the flank's edge
- * while the pin stays dead straight: an axis at y = 0 rides high at the ends and the
- * head breaks the surface. Half the arch splits the error between centre and edge,
- * and leaves at least 0.385mm of metal all round the bore at every point along it.
+ * BELOW the mid-plane, and as low as the metal allows, because the link arches away
+ * at the flank's edge while the pin stays dead straight. What the eye judges is
+ * whether the head sits centred on the face it is set into, and the middle of that
+ * face is at -0.795. The bore cannot go that low — the centre link's floor rises to
+ * meet it — so -0.655 is the bottom of the band that still keeps 0.15mm of metal
+ * under the bore at every x along it. That leaves the head 0.139mm off centre on the
+ * face, against 0.375mm at the old height.
  *
  * Exported because two other things need THE SAME LINE: the bore cut through the
  * links, and the axis the explode system turns the pin about. Spinning it about the
  * instance origin instead swings it round a circle the size of this offset — which
  * is exactly what "the screws all move in one big motion" looked like.
  */
-export const LINK_PIN_PIVOT = [0, -0.42, -BRACELET.linkLength / 2 + 1.1] as const
+export const LINK_PIN_PIVOT = [0, -0.655, -BRACELET.linkLength / 2 + 1.1] as const
+
+/**
+ * The thread, and the turns that follow from it.
+ *
+ * A screw advances by exactly ONE PITCH PER TURN. That is the whole difference
+ * between something that threads and something that spins while it happens to be
+ * sliding, and it is not a number to pick by eye — so the rotation the explode system
+ * applies is derived from the thread here rather than set alongside it, and the two
+ * cannot drift apart.
+ *
+ * 0.45mm is coarse for a bracelet screw, which would really be nearer 0.3. It is
+ * chosen so the count lands on ten legible turns rather than fifteen that strobe: at
+ * this scale the pitch is what you can see and the count is what you can follow, and
+ * only one of them gets to be right.
+ */
+export const LINK_PIN_THREAD = { length: 4.5, pitch: 0.45 } as const
+export const LINK_PIN_TURNS = LINK_PIN_THREAD.length / LINK_PIN_THREAD.pitch
 
 /** Bore radius. 0.08mm of clearance around the 0.42mm shaft, so it is a hole, not a press fit. */
 const PIN_BORE_RADIUS = 0.5
@@ -404,9 +424,8 @@ export function buildLinkPin(hand: -1 | 1): THREE.BufferGeometry {
     // 1.24mm across. At 1.0 the slot was too fine to read at any sane viewing size.
     const headRadius = 0.62
     const headThickness = 0.4
-    const threadLength = 4.8
+    const { length: threadLength, pitch: threadPitch } = LINK_PIN_THREAD
     const threadDepth = 0.12
-    const threadPitch = 0.34
 
     const shaft = new THREE.CylinderGeometry(shaftRadius, shaftRadius, length, 20)
     shaft.rotateZ(Math.PI / 2)
@@ -460,7 +479,7 @@ export function buildLinkPin(hand: -1 | 1): THREE.BufferGeometry {
     /**
      * The thread, at the far end.
      *
-     * Stacked rings rather than a true helix. At a 0.28mm pitch on a 0.84mm shaft the
+     * Stacked rings rather than a true helix. At this pitch on a 0.84mm shaft the
      * difference is well under a pixel at any sane viewing size, and a lathe of a
      * sawtooth profile costs a fraction of a swept helical solid.
      */

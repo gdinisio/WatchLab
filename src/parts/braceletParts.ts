@@ -1,8 +1,9 @@
 import * as THREE from 'three'
 import { AXIS, BRACELET, CASE } from '../config/datejust36'
 import {
-  END_LINK_Z, LINK_PIN_PIVOT, braceletPlacements, buildClaspCentre, buildClaspCoronet, buildClaspCover,
-  buildEndLinkCentre, buildEndLinkFlanks, buildLinkCentre, buildLinkFlank, buildLinkPin, claspTransform,
+  END_LINK_Z, LINK_PIN_PIVOT, LINK_PIN_THREAD, LINK_PIN_TURNS, braceletPlacements, buildClaspCentre,
+  buildClaspCoronet, buildClaspCover, buildEndLinkCentre, buildEndLinkFlanks, buildLinkCentre,
+  buildLinkFlank, buildLinkPin, claspTransform,
 } from './bracelet'
 import { Y } from './layout'
 import type { PartDef, PartGroup } from './types'
@@ -62,20 +63,30 @@ const FLANK_SPAN = [0.46, 0.72] as const
 const CENTRE_SPAN = [0.49, 0.76] as const
 const END_LINK_SPAN = [0.53, 0.82] as const
 
+/** How far the pin travels, and how far of that its tail is still inside the link. */
+const PIN_DISTANCE = 29
+/** Tail at -9.6 to the flank's outer face at 9.94: the travel that clears the hole. */
+const PIN_CLEAR = 19.54
+
 /**
- * The pin's own three beats, measured off the part.
+ * The pin's three beats, derived from the part rather than chosen.
  *
- * `of` is the share of the 29mm travel, `over` the share of the pin's timeline.
- * Read outward from seated: it threads for 4.81mm — the exact length of the thread
- * cut on it — then pushes 14.67mm to the mouth of its hole, then flies the last
- * 9.51mm clear. Splitting distance from time is what makes the threading legible:
- * it is a sixth of the journey but a third of the clock, so the screw turns at half
- * speed while the rest of the trip runs at a comfortable pace.
+ * `of` is the share of the travel, `over` the share of the pin's timeline. Read
+ * outward from seated — which is the order it comes apart, and read backwards, the
+ * order it goes together:
+ *
+ *   thread   the exact length of thread cut on the pin, turning one pitch per turn
+ *   push     the smooth shank running through the near flank and the centre link
+ *   fly      clear of the hole and out to the parking position
+ *
+ * Splitting distance from time is what makes the threading legible: it is a sixth of
+ * the journey but two fifths of the clock, so ten turns happen at a pace you can
+ * follow while the rest of the trip runs briskly.
  */
 const PIN_LEGS = [
-  { of: 0.166, over: 0.34 },
-  { of: 0.506, over: 0.40 },
-  { of: 0.328, over: 0.26 },
+  { of: LINK_PIN_THREAD.length / PIN_DISTANCE, over: 0.4 },
+  { of: (PIN_CLEAR - LINK_PIN_THREAD.length) / PIN_DISTANCE, over: 0.36 },
+  { of: (PIN_DISTANCE - PIN_CLEAR) / PIN_DISTANCE, over: 0.24 },
 ] as const
 
 const endLinkInstance = (side: 1 | -1) => ({
@@ -166,10 +177,24 @@ const runParts: PartDef[] = SIDES.flatMap(({ key, side, axis, label }) => [
     explode: {
       axis: ACROSS(pinHand(side)),
       // Out past the flank on that side, so the rods park clear of everything else.
-      distance: 29,
+      distance: PIN_DISTANCE,
       order: 0,
       span: PIN_SPAN,
-      spin: 2.5,
+      /**
+       * Ten turns, because that is what the thread is: 4.5mm of it at a 0.45mm pitch.
+       * Derived rather than chosen, so a screw cannot advance by anything other than
+       * one pitch per revolution however either number is retuned.
+       */
+      spin: LINK_PIN_TURNS,
+      /**
+       * The screws go in ONE AFTER ANOTHER, from the clasp back toward the case.
+       *
+       * Twelve pins arriving in perfect unison is the one thing that gave the whole
+       * sequence away as an animation: nobody assembles a bracelet that way. A third
+       * of the window spread down the run turns the rank into a ripple, and each pin
+       * still gets the full push-then-thread treatment in its own slice of it.
+       */
+      stagger: 0.34,
       spinAxis: ACROSS(pinHand(side)),
       /**
        * The line the pin turns about — its own, not its link's.
@@ -185,7 +210,9 @@ const runParts: PartDef[] = SIDES.flatMap(({ key, side, axis, label }) => [
        *
        * The turning is tied to the first leg rather than given its own number, so the
        * pin cannot turn for longer or shorter than its thread is engaged however the
-       * beats are retimed later.
+       * beats are retimed later. Together with `spin` coming off the pitch, that means
+       * the screw turns exactly while the thread is in the hole and advances exactly
+       * one pitch each time it does.
        *
        * These are fractions of the RAW cascade parameter: parts carrying a `seat`
        * skip `easeOutBack`, which would otherwise squash the lot into the first few

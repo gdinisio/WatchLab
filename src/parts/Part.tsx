@@ -9,6 +9,8 @@ import { partProgress } from './explode'
 import { INSPECT_POSITION, INSPECT_SPIN_SPEED, smoothstep } from './inspect'
 import type { PartDef, SeatLeg } from './types'
 
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v)
+
 const _axis = new THREE.Vector3()
 const _spinAxis = new THREE.Vector3()
 const _q = new THREE.Quaternion()
@@ -43,6 +45,19 @@ function seatedTravel(p: number, legs?: readonly SeatLeg[]): number {
     covered += leg.of
   }
   return covered
+}
+
+/**
+ * One instance's own progress through a staggered window.
+ *
+ * The copies are handed out overlapping slices of the part's timeline: the last
+ * starts `stagger` of the way in and the first starts at zero, so on the way back the
+ * far end of the run seats first and the work travels toward the case, the way a
+ * person actually puts a bracelet together.
+ */
+function instanceProgress(p: number, i: number, count: number, stagger: number): number {
+  if (count < 2) return p
+  return clamp01((p - (stagger * i) / (count - 1)) / (1 - stagger))
 }
 
 export interface PartProps {
@@ -100,7 +115,7 @@ export function Part({ def, lib, maxOrder, simpleGlass = false }: PartProps) {
   }, [def])
 
   const instanced = useRef<THREE.InstancedMesh>(null)
-  const lastSpin = useRef(Number.NaN)
+  const lastKey = useRef(Number.NaN)
   const baseQuat = useMemo(() => {
     _euler.set(...((def.rotation ?? [0, 0, 0]) as [number, number, number]))
     return new THREE.Quaternion().setFromEuler(_euler)
@@ -138,8 +153,13 @@ export function Part({ def, lib, maxOrder, simpleGlass = false }: PartProps) {
       _q.setFromAxisAngle(_spinAxis, spinAngle)
     }
 
+    // A staggered part carries its travel in the instance matrices instead, because
+    // no two copies are at the same point in it; the group stays where it sits.
+    const stagger = instanceRest && def.explode.stagger ? def.explode.stagger : 0
+
     _axis.set(axis[0], axis[1], axis[2])
-    _explodePos.copy(basePos).addScaledVector(_axis, distance * seatedTravel(p, seat))
+    _explodePos.copy(basePos)
+    if (!stagger) _explodePos.addScaledVector(_axis, distance * seatedTravel(p, seat))
     /**
      * Rotating about a line that misses the origin is a rotation PLUS a translation.
      *
@@ -189,27 +209,35 @@ export function Part({ def, lib, maxOrder, simpleGlass = false }: PartProps) {
     // Always written, never conditionally skipped: leaving the last frame's value in
     // place is exactly how the residual rotation got stranded in the first place.
     _base.copy(baseQuat)
-    if (spin) {
-      if (instanceRest) {
-        if (instanced.current && spinAngle !== lastSpin.current) {
-          for (let i = 0; i < instanceRest.length; i++) {
-            const rest = instanceRest[i]
+    if (instanceRest && (spin || stagger)) {
+      // Rebuild when anything the copies depend on has moved: their own progress if
+      // they are staggered, otherwise just the shared angle.
+      const key = stagger ? p : spinAngle
+      if (instanced.current && key !== lastKey.current) {
+        for (let i = 0; i < instanceRest.length; i++) {
+          const rest = instanceRest[i]
+          const pi = stagger ? instanceProgress(p, i, instanceRest.length, stagger) : p
+          _instancePos.copy(rest.position)
+          if (stagger) _instancePos.addScaledVector(_axis, distance * seatedTravel(pi, seat))
+          if (spin) {
+            _q.setFromAxisAngle(_spinAxis, spin * TAU * Math.min(1, pi / spinPhase))
             _instanceQuat.copy(_q).multiply(rest.quaternion)
-            _instancePos.copy(rest.position)
             // Same correction as above, but per copy: each pin holds its own axis.
             if (rest.pivot) {
               _pivotSpun.copy(rest.pivot).applyQuaternion(_q)
               _instancePos.add(rest.pivot).sub(_pivotSpun)
             }
-            _instanceMatrix.compose(_instancePos, _instanceQuat, rest.scale)
-            instanced.current.setMatrixAt(i, _instanceMatrix)
+          } else {
+            _instanceQuat.copy(rest.quaternion)
           }
-          instanced.current.instanceMatrix.needsUpdate = true
-          lastSpin.current = spinAngle
+          _instanceMatrix.compose(_instancePos, _instanceQuat, rest.scale)
+          instanced.current.setMatrixAt(i, _instanceMatrix)
         }
-      } else {
-        _base.premultiply(_q)
+        instanced.current.instanceMatrix.needsUpdate = true
+        lastKey.current = key
       }
+    } else if (spin) {
+      _base.premultiply(_q)
     }
     if (inspect.current.angle !== 0) {
       _q.setFromAxisAngle(_up, inspect.current.angle)
